@@ -1,0 +1,8 @@
+[package]
+name = "rust-tomlparse"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.42", features = ["derive"] }
+toml = { version = "0.9.4", features = ["preserve_order"] }
