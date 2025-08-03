@@ -15,7 +15,9 @@ pub enum LayoutError {
     NoPadding,
     InvalidHeader,
     InvalidData,
+    InvalidCell,
     InvalidUnitSize,
+    BadDataValueExtraction,
 }
 
 pub struct FlashBlock {
@@ -89,7 +91,7 @@ impl FlashBlock {
         Ok(Self {
             start_address: extract_uint(start_address, LayoutError::InvalidHeader)?,
             length: extract_uint(length, LayoutError::InvalidHeader)?,
-            padding: extract_datavalue(padding, LayoutError::NoPadding)?,
+            padding: extract_datavalue(padding)?[0].clone(),
             address_width: AddressWidth::Bits32,
             unit_size,
             endianness: Endianness::Little,
