@@ -1,7 +1,7 @@
 mod conversions;
 mod types;
 
-use conversions::{extract_crc_location, extract_datavalue, extract_table, extract_uint};
+use conversions::{extract_crc_location, extract_table, extract_uint};
 use std::fs;
 use types::*;
 
@@ -91,7 +91,7 @@ impl FlashBlock {
         Ok(Self {
             start_address: extract_uint(start_address, LayoutError::InvalidHeader)?,
             length: extract_uint(length, LayoutError::InvalidHeader)?,
-            padding: extract_datavalue(padding)?[0].clone(),
+            padding: DataValue::U8(extract_uint(padding, LayoutError::NoPadding)? as u8),
             address_width: AddressWidth::Bits32,
             unit_size,
             endianness: Endianness::Little,
