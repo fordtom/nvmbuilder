@@ -1,7 +1,9 @@
 mod conversions;
+mod types;
 
-use conversions::{UnsignedInt, extract_crc_location, extract_table, extract_uint};
+use conversions::{extract_crc_location, extract_datavalue, extract_table, extract_uint};
 use std::fs;
+use types::*;
 
 #[derive(Debug)]
 pub enum LayoutError {
@@ -13,37 +15,33 @@ pub enum LayoutError {
     NoPadding,
     InvalidHeader,
     InvalidData,
+    InvalidUnitSize,
 }
 
-#[derive(Debug, Clone)]
-pub enum CrcLocation<AddrSize> {
-    Start,
-    End,
-    Address(AddrSize),
-}
-
-pub struct FlashBlock<AddrSize, Smallest> {
+pub struct FlashBlock {
     // From the block header
-    start_address: AddrSize,
-    length: AddrSize,
-    padding: Smallest,
+    start_address: u32,
+    length: u32,
+    padding: DataValue,
 
     // Data alignment
-    alignment: toml::Table,
+    address_width: AddressWidth,
+    endianness: Endianness,
+    unit_size: MemoryUnitSize,
 
     // Options and value for the CRC32
     crc_polynomial: u32,
-    crc_location: CrcLocation<AddrSize>,
+    crc_location: CrcLocation,
     crc32: Option<u32>,
 
     // The data itself
     data: toml::Table,
 
     // The output
-    bytestream: Option<Vec<Smallest>>,
+    bytestream: Option<Vec<u8>>,
 }
 
-impl<AddrSize: UnsignedInt, Smallest: UnsignedInt> FlashBlock<AddrSize, Smallest> {
+impl FlashBlock {
     pub fn new(filename: String, blockname: String) -> Result<Self, LayoutError> {
         // Open and parse the file
         let file: String =
@@ -81,16 +79,20 @@ impl<AddrSize: UnsignedInt, Smallest: UnsignedInt> FlashBlock<AddrSize, Smallest
             .get("crc_location")
             .ok_or(LayoutError::InvalidHeader)?;
 
-        // Get the alignment info
-        let alignment = settings
-            .get("alignment")
+        // Get the unit size
+        let unit_size = settings
+            .get("unit_size")
             .ok_or(LayoutError::InvalidSettings)?;
+        let unit_size = extract_uint(unit_size, LayoutError::InvalidSettings)? as usize;
+        let unit_size = MemoryUnitSize::from_bytes(unit_size)?;
 
         Ok(Self {
             start_address: extract_uint(start_address, LayoutError::InvalidHeader)?,
             length: extract_uint(length, LayoutError::InvalidHeader)?,
-            padding: extract_uint(padding, LayoutError::NoPadding)?,
-            alignment: extract_table(alignment, LayoutError::InvalidSettings)?,
+            padding: extract_datavalue(padding, LayoutError::NoPadding)?,
+            address_width: AddressWidth::Bits32,
+            unit_size,
+            endianness: Endianness::Little,
             crc_polynomial: extract_uint(crc_polynomial, LayoutError::InvalidSettings)?,
             crc_location: extract_crc_location(crc_location, LayoutError::InvalidHeader)?,
             crc32: None,
@@ -99,16 +101,20 @@ impl<AddrSize: UnsignedInt, Smallest: UnsignedInt> FlashBlock<AddrSize, Smallest
         })
     }
 
+    pub fn value_to_bytes(&self, value: &DataValue) -> Vec<u8> {
+        value.to_bytes(self.endianness)
+    }
+
     // Getter methods
-    pub fn start_address(&self) -> &AddrSize {
+    pub fn start_address(&self) -> &u32 {
         &self.start_address
     }
 
-    pub fn length(&self) -> &AddrSize {
+    pub fn length(&self) -> &u32 {
         &self.length
     }
 
-    pub fn padding(&self) -> &Smallest {
+    pub fn padding(&self) -> &DataValue {
         &self.padding
     }
 
@@ -116,7 +122,7 @@ impl<AddrSize: UnsignedInt, Smallest: UnsignedInt> FlashBlock<AddrSize, Smallest
         self.crc_polynomial
     }
 
-    pub fn crc_location(&self) -> &CrcLocation<AddrSize> {
+    pub fn crc_location(&self) -> &CrcLocation {
         &self.crc_location
     }
 

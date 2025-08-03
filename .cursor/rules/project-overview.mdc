@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+The goal of this project is to make an executable capable of parsing both a toml file and excel file, combining the data together to build first a bytestream and then write a .hex file that can be flashed to embedded microcontrollers. The layout, adresses, endianness and other settings are defined in the toml file, whereeas the excel stores numerical values and platform variations for the data structure that we are assembling.

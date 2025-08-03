@@ -1,26 +1,54 @@
-use crate::layout::{CrcLocation, LayoutError};
-
-pub trait UnsignedInt: TryFrom<i64> + Copy + std::fmt::Display + Default
-// where
-//     <Self as TryFrom<i64>>::Error: std::fmt::Debug,
-{
-}
-
-impl UnsignedInt for u8 {}
-impl UnsignedInt for u16 {}
-impl UnsignedInt for u32 {}
-impl UnsignedInt for u64 {}
+use crate::layout::{
+    LayoutError,
+    types::{CrcLocation, DataValue},
+};
 
 pub trait FromToml: Sized {
     fn from_toml_value(value: &toml::Value) -> Result<Self, LayoutError>;
 }
 
-pub fn extract_uint<T: UnsignedInt>(
+pub fn extract_uint(value: &toml::Value, error: LayoutError) -> Result<u32, LayoutError> {
+    match value {
+        toml::Value::Integer(n) if *n >= 0 => u32::try_from(*n).map_err(|_| error),
+        _ => Err(error),
+    }
+}
+
+pub fn extract_datavalue(
     value: &toml::Value,
     error: LayoutError,
-) -> Result<T, LayoutError> {
+) -> Result<DataValue, LayoutError> {
     match value {
-        toml::Value::Integer(n) if *n >= 0 => T::try_from(*n).map_err(|_| error),
+        toml::Value::Integer(n) if *n >= 0 => {
+            // Try to fit in smallest possible unsigned type
+            if let Ok(val) = u8::try_from(*n) {
+                Ok(DataValue::U8(val))
+            } else if let Ok(val) = u16::try_from(*n) {
+                Ok(DataValue::U16(val))
+            } else if let Ok(val) = u32::try_from(*n) {
+                Ok(DataValue::U32(val))
+            } else if let Ok(val) = u64::try_from(*n) {
+                Ok(DataValue::U64(val))
+            } else {
+                Err(error)
+            }
+        }
+        toml::Value::Integer(n) => {
+            // Handle negative integers - try signed types
+            if let Ok(val) = i8::try_from(*n) {
+                Ok(DataValue::I8(val))
+            } else if let Ok(val) = i16::try_from(*n) {
+                Ok(DataValue::I16(val))
+            } else if let Ok(val) = i32::try_from(*n) {
+                Ok(DataValue::I32(val))
+            } else {
+                Ok(DataValue::I64(*n as i64))
+            }
+        }
+        toml::Value::Float(f) => {
+            // Try f32 first, fall back to f64
+            Ok(DataValue::F32(*f as f32))
+        }
         _ => Err(error),
     }
 }
@@ -39,10 +67,10 @@ pub fn extract_string(value: &toml::Value, error: LayoutError) -> Result<String,
     }
 }
 
-pub fn extract_crc_location<T: UnsignedInt>(
+pub fn extract_crc_location(
     value: &toml::Value,
     error: LayoutError,
-) -> Result<CrcLocation<T>, LayoutError> {
+) -> Result<CrcLocation, LayoutError> {
     match value {
         toml::Value::String(s) => match s.as_str() {
             "start" => Ok(CrcLocation::Start),
@@ -50,7 +78,7 @@ pub fn extract_crc_location<T: UnsignedInt>(
             _ => Err(error),
         },
         toml::Value::Integer(n) if *n >= 0 => {
-            let addr = T::try_from(*n).map_err(|_| error)?;
+            let addr = u32::try_from(*n).map_err(|_| error)?;
             Ok(CrcLocation::Address(addr))
         }
         _ => Err(error),

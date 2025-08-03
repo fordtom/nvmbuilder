@@ -1,17 +1,8 @@
 [settings]
 padding = 0xFF
 crc_polynomial = 0xFFFFFFFF
-
-[settings.alignment]
-f32 = 2
-u16 = 1
-i16 = 1
-u8 = 1
-i8 = 1
-u32 = 2
-i32 = 2
-u64 = 4
-i64 = 4
+endianness = "little"
+unit_size = 1
 
 [block.header]
 start_address = 0x8B000
