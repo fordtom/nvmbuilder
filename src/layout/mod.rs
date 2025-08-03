@@ -37,10 +37,10 @@ pub struct FlashBlock {
     crc32: Option<u32>,
 
     // The data itself
-    data: toml::Table,
+    pub data: toml::Table,
 
     // The output
-    bytestream: Option<Vec<u8>>,
+    pub bytestream: Option<Vec<u8>>,
 }
 
 impl FlashBlock {

@@ -1,6 +1,7 @@
 use clap::Parser;
 
 mod layout;
+mod variants;
 
 #[derive(Parser)]
 struct Args {
