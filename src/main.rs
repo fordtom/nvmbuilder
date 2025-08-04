@@ -16,10 +16,10 @@ struct Args {
 }
 
 fn main() {
-    let args = Args::parse();
+    // let args = Args::parse();
 
     // Test the FlashBlock constructor
-    match layout::FlashBlock::new("data/block.toml".to_string(), "block".to_string()) {
+    match layout::FlashBlock::new("data/block.toml", "block") {
         Ok(flash_block) => {
             println!("✅ Successfully loaded FlashBlock!");
             println!("Start Address: 0x{:X}", flash_block.start_address());

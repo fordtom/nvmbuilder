@@ -44,7 +44,7 @@ pub struct FlashBlock {
 }
 
 impl FlashBlock {
-    pub fn new(filename: String, blockname: String) -> Result<Self, LayoutError> {
+    pub fn new(filename: &str, blockname: &str) -> Result<Self, LayoutError> {
         // Open and parse the file
         let file: String =
             fs::read_to_string(filename).map_err(|_| LayoutError::FailedToReadFile)?;

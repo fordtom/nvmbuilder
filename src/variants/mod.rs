@@ -10,6 +10,8 @@ pub enum VariantError {
     RowNotFound,
     InvalidCell,
     ArrayTooLong,
+    BadRecursion,
+    BadName,
 }
 
 pub struct DataSheet {
@@ -79,7 +81,8 @@ impl DataSheet {
             variants = Some(variant_vec);
         };
 
-        let mut sheets: HashMap<String, Range<Data>> = HashMap::new();
+        let mut sheets: HashMap<String, Range<Data>> =
+            HashMap::with_capacity(workbook.worksheets().len() - 1);
         for (name, sheet) in workbook.worksheets() {
             if name != "Main" {
                 sheets.insert(name.to_string(), sheet);
@@ -93,6 +96,44 @@ impl DataSheet {
             variants,
             sheets,
         })
+    }
+
+    pub fn walk_data_section(&self, table: &mut toml::Table) -> Result<(), VariantError> {
+        for (_, value) in table.iter_mut() {
+            if let toml::Value::Table(nested_table) = value {
+                if nested_table.contains_key("value") && nested_table.contains_key("type") {
+                    // skip as this is already populated
+                } else if nested_table.contains_key("name") && nested_table.contains_key("type") {
+                    // populate this
+                    let name = nested_table
+                        .get("name")
+                        .unwrap()
+                        .as_str()
+                        .ok_or(VariantError::BadName)?;
+
+                    let data = self.retrieve_cell_data(name)?;
+                    match data {
+                        Data::Int(_) | Data::Float(_) => {
+                            let toml_value = self.single_data_to_toml(data)?;
+                            nested_table.insert("value".to_string(), toml_value);
+                        }
+                        Data::String(_) => {
+                            // TODO: Arrays and strings
+                        }
+                        _ => {
+                            return Err(VariantError::InvalidCell);
+                        }
+                    }
+                } else {
+                    // Step into the next table
+                    self.walk_data_section(nested_table)?;
+                }
+            } else {
+                // We somehow reached an invalid value
+                return Err(VariantError::BadRecursion);
+            }
+        }
+        Ok(())
     }
 
     fn retrieve_cell_data(&self, name: &str) -> Result<Data, VariantError> {
@@ -125,5 +166,13 @@ impl DataSheet {
         }
 
         Err(VariantError::RowNotFound)
+    }
+
+    fn single_data_to_toml(&self, data: Data) -> Result<toml::Value, VariantError> {
+        match data {
+            Data::Int(i) => Ok(toml::Value::Integer(i)),
+            Data::Float(f) => Ok(toml::Value::Float(f)),
+            _ => Err(VariantError::InvalidCell),
+        }
     }
 }
