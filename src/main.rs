@@ -1,7 +1,9 @@
-use clap::Parser;
+#![allow(dead_code, unused_variables)]
 
 mod layout;
 mod variants;
+
+use clap::Parser;
 
 #[derive(Parser)]
 struct Args {

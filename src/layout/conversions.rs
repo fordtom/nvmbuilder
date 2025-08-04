@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_variables)]
+
 use crate::layout::{
     LayoutError,
     types::{CrcLocation, DataValue, TypeSpec},
