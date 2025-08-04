@@ -34,6 +34,7 @@ impl DataSheet {
             .map_err(|_| VariantError::DefaultColumnNotFound)?;
 
         let rows: Vec<_> = main_sheet.rows().collect();
+        let data_rows = rows.len() - 1;
         let headers = &rows[0];
 
         let name_index = headers
@@ -46,6 +47,12 @@ impl DataSheet {
             .position(|cell| cell.to_string() == "Default")
             .ok_or(VariantError::DefaultColumnNotFound)?;
 
+        let mut names: Vec<String> = Vec::with_capacity(data_rows);
+        names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
+
+        let mut defaults: Vec<Data> = Vec::with_capacity(data_rows);
+        defaults.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
+
         let mut debugs: Option<Vec<Data>> = None;
         if debug {
             let debug_index = headers
@@ -53,12 +60,10 @@ impl DataSheet {
                 .position(|cell| cell.to_string() == "Debug")
                 .ok_or(VariantError::OptionalColumnNotFound)?;
 
-            debugs = Some(
-                rows.iter()
-                    .skip(1)
-                    .map(|row| row[debug_index].clone())
-                    .collect(),
-            );
+            let mut debug_vec: Vec<Data> = Vec::with_capacity(data_rows);
+            debug_vec.extend(rows.iter().skip(1).map(|row| row[debug_index].clone()));
+
+            debugs = Some(debug_vec);
         }
 
         let mut variants: Option<Vec<Data>> = None;
@@ -68,25 +73,11 @@ impl DataSheet {
                 .position(|cell| cell.to_string() == *name)
                 .ok_or(VariantError::OptionalColumnNotFound)?;
 
-            variants = Some(
-                rows.iter()
-                    .skip(1)
-                    .map(|row| row[variant_index].clone())
-                    .collect(),
-            );
+            let mut variant_vec: Vec<Data> = Vec::with_capacity(data_rows);
+            variant_vec.extend(rows.iter().skip(1).map(|row| row[variant_index].clone()));
+
+            variants = Some(variant_vec);
         };
-
-        let names: Vec<String> = rows
-            .iter()
-            .skip(1)
-            .map(|row| row[name_index].to_string())
-            .collect();
-
-        let defaults: Vec<Data> = rows
-            .iter()
-            .skip(1)
-            .map(|row| row[default_index].clone())
-            .collect();
 
         let mut sheets: HashMap<String, Range<Data>> = HashMap::new();
         for (name, sheet) in workbook.worksheets() {
