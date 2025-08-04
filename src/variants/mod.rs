@@ -95,21 +95,33 @@ impl DataSheet {
         })
     }
 
-    fn get_correct_cell(&self, name: &str) -> Result<Data, VariantError> {
+    fn retrieve_cell_data(&self, name: &str) -> Result<Data, VariantError> {
+        let index = self
+            .names
+            .iter()
+            .position(|n| n == name)
+            .ok_or(VariantError::RowNotFound)?;
+
         if let Some(debugs) = &self.debugs {
-            if let Some(debug) = debugs.iter().find(|d| d.to_string() == name) {
-                return Ok(debug.clone());
+            if let Some(debug) = debugs.get(index) {
+                if !matches!(debug, Data::Empty) {
+                    return Ok(debug.clone());
+                }
             }
         }
 
         if let Some(variants) = &self.variants {
-            if let Some(variant) = variants.iter().find(|v| v.to_string() == name) {
-                return Ok(variant.clone());
+            if let Some(variant) = variants.get(index) {
+                if !matches!(variant, Data::Empty) {
+                    return Ok(variant.clone());
+                }
             }
         }
 
-        if let Some(default) = self.defaults.iter().find(|d| d.to_string() == name) {
-            return Ok(default.clone());
+        if let Some(default) = self.defaults.get(index) {
+            if !matches!(default, Data::Empty) {
+                return Ok(default.clone());
+            }
         }
 
         Err(VariantError::RowNotFound)
