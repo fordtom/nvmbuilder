@@ -1,6 +1,7 @@
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub enum VariantError {
     FailedToReadFile,
     FailedToParseFile,
@@ -16,18 +17,14 @@ pub enum VariantError {
 
 pub struct DataSheet {
     names: Vec<String>,
-    defaults: Vec<Data>,
-    debugs: Option<Vec<Data>>,
-    variants: Option<Vec<Data>>,
+    default_values: Vec<Data>,
+    debug_values: Option<Vec<Data>>,
+    variant_values: Option<Vec<Data>>,
     sheets: HashMap<String, Range<Data>>,
 }
 
 impl DataSheet {
-    pub fn new(
-        filename: String,
-        variant: Option<String>,
-        debug: bool,
-    ) -> Result<Self, VariantError> {
+    pub fn new(filename: &str, variant: Option<&str>, debug: bool) -> Result<Self, VariantError> {
         let mut workbook: Xlsx<_> =
             open_workbook(filename).map_err(|_| VariantError::FailedToReadFile)?;
 
@@ -52,10 +49,10 @@ impl DataSheet {
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
         names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
 
-        let mut defaults: Vec<Data> = Vec::with_capacity(data_rows);
-        defaults.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
+        let mut default_values: Vec<Data> = Vec::with_capacity(data_rows);
+        default_values.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
 
-        let mut debugs: Option<Vec<Data>> = None;
+        let mut debug_values: Option<Vec<Data>> = None;
         if debug {
             let debug_index = headers
                 .iter()
@@ -65,10 +62,10 @@ impl DataSheet {
             let mut debug_vec: Vec<Data> = Vec::with_capacity(data_rows);
             debug_vec.extend(rows.iter().skip(1).map(|row| row[debug_index].clone()));
 
-            debugs = Some(debug_vec);
+            debug_values = Some(debug_vec);
         }
 
-        let mut variants: Option<Vec<Data>> = None;
+        let mut variant_values: Option<Vec<Data>> = None;
         if let Some(ref name) = variant {
             let variant_index = headers
                 .iter()
@@ -78,7 +75,7 @@ impl DataSheet {
             let mut variant_vec: Vec<Data> = Vec::with_capacity(data_rows);
             variant_vec.extend(rows.iter().skip(1).map(|row| row[variant_index].clone()));
 
-            variants = Some(variant_vec);
+            variant_values = Some(variant_vec);
         };
 
         let mut sheets: HashMap<String, Range<Data>> =
@@ -91,9 +88,9 @@ impl DataSheet {
 
         Ok(Self {
             names,
-            defaults,
-            debugs,
-            variants,
+            default_values,
+            debug_values,
+            variant_values,
             sheets,
         })
     }
@@ -143,23 +140,23 @@ impl DataSheet {
             .position(|n| n == name)
             .ok_or(VariantError::RowNotFound)?;
 
-        if let Some(debugs) = &self.debugs {
-            if let Some(debug) = debugs.get(index) {
+        if let Some(debug_values) = &self.debug_values {
+            if let Some(debug) = debug_values.get(index) {
                 if !matches!(debug, Data::Empty) {
                     return Ok(debug.clone());
                 }
             }
         }
 
-        if let Some(variants) = &self.variants {
-            if let Some(variant) = variants.get(index) {
+        if let Some(variant_values) = &self.variant_values {
+            if let Some(variant) = variant_values.get(index) {
                 if !matches!(variant, Data::Empty) {
                     return Ok(variant.clone());
                 }
             }
         }
 
-        if let Some(default) = self.defaults.get(index) {
+        if let Some(default) = self.default_values.get(index) {
             if !matches!(default, Data::Empty) {
                 return Ok(default.clone());
             }

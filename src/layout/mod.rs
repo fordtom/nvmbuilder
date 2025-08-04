@@ -2,7 +2,7 @@ mod conversions;
 mod types;
 
 use conversions::{extract_crc_location, extract_table, extract_uint};
-use std::fs;
+use std::{cell::RefCell, fs};
 use types::*;
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub struct FlashBlock {
     crc32: Option<u32>,
 
     // The data itself
-    pub data: toml::Table,
+    pub data: RefCell<toml::Table>,
 
     // The output
     pub bytestream: Option<Vec<u8>>,
@@ -98,7 +98,7 @@ impl FlashBlock {
             crc_polynomial: extract_uint(crc_polynomial, LayoutError::InvalidSettings)?,
             crc_location: extract_crc_location(crc_location, LayoutError::InvalidHeader)?,
             crc32: None,
-            data: extract_table(data, LayoutError::InvalidData)?,
+            data: RefCell::new(extract_table(data, LayoutError::InvalidData)?),
             bytestream: None,
         })
     }
@@ -128,7 +128,11 @@ impl FlashBlock {
         &self.crc_location
     }
 
-    pub fn data(&self) -> &toml::Table {
-        &self.data
+    pub fn data(&self) -> std::cell::Ref<toml::Table> {
+        self.data.borrow()
+    }
+
+    pub fn data_mut(&self) -> std::cell::RefMut<toml::Table> {
+        self.data.borrow_mut()
     }
 }

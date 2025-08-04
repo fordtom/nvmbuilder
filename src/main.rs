@@ -19,7 +19,7 @@ fn main() {
     // let args = Args::parse();
 
     // Test the FlashBlock constructor
-    match layout::FlashBlock::new("data/block.toml", "block") {
+    let flash_block = match layout::FlashBlock::new("data/block.toml", "block") {
         Ok(flash_block) => {
             println!("✅ Successfully loaded FlashBlock!");
             println!("Start Address: 0x{:X}", flash_block.start_address());
@@ -27,9 +27,34 @@ fn main() {
             println!("CRC Polynomial: 0x{:X}", flash_block.crc_poly());
             println!("CRC Location: {:?}", flash_block.crc_location());
             println!("Data entries: {}", flash_block.data().len());
+            flash_block
         }
         Err(e) => {
             println!("❌ Failed to load FlashBlock: {:?}", e);
+            return;
+        }
+    };
+
+    // Test the DataSheet constructor
+    let data_sheet = match variants::DataSheet::new("data/data.xlsx", Some("VarA"), true) {
+        Ok(data_sheet) => {
+            println!("✅ Successfully loaded DataSheet!");
+            data_sheet
+        }
+        Err(e) => {
+            println!("❌ Failed to load DataSheet: {:?}", e);
+            return;
+        }
+    };
+
+    // Test the walk_data_section method
+    match data_sheet.walk_data_section(&mut flash_block.data_mut()) {
+        Ok(_) => {
+            println!("✅ Successfully walked data section!");
+        }
+        Err(e) => {
+            println!("❌ Failed to walk data section: {:?}", e);
+            return;
         }
     }
 }
