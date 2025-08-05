@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 mod conversions;
 mod types;
 

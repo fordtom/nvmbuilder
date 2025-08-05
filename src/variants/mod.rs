@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 

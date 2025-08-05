@@ -1,0 +1,30 @@
+{
+    "settings": {
+        "padding": 255,
+        "endianness": "little",
+        "crc": {
+            "polynomial": 79764919,
+            "start": 4294967295,
+            "xor_out": 4294967295,
+            "reverse": true
+        }
+    },
+    "block": {
+        "header": {
+            "start_address": 569344,
+            "length": 4096,
+            "crc_location": 573424,
+            "padding": 192
+        },
+        "data": {
+            "some.struct.value": {
+                "value": 4660,
+                "type": "u32"
+            },
+            "some.struct.value2": {
+                "name": "Value 2",
+                "type": "u32"
+            }
+        }
+    }
+}

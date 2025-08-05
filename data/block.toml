@@ -1,13 +1,17 @@
 [settings]
 padding = 0xFF
-crc_polynomial = 0xFFFFFFFF
 endianness = "little"
-unit_size = 1
+
+[settings.crc]
+polynomial = 0x04C11DB7
+start = 0xFFFFFFFF
+xor_out = 0xFFFFFFFF
+reverse = true
 
 [block.header]
 start_address = 0x8B000
 length = 0x1000
-crc_location = "end"
+crc_location = 0x8BFF0
 padding = 0xC0
 
 [block.data]
