@@ -15,6 +15,14 @@ pub enum VariantError {
     BadName,
 }
 
+impl std::fmt::Display for VariantError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for VariantError {}
+
 pub struct DataSheet {
     names: Vec<String>,
     default_values: Vec<Data>,

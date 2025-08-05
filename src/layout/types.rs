@@ -1,12 +1,5 @@
 use crate::layout::LayoutError;
 
-#[derive(Debug, Clone)]
-pub enum CrcLocation {
-    Start,
-    End,
-    Address(u32),
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum Endianness {
     Little,
