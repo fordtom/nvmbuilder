@@ -168,11 +168,14 @@ where
                 Ok(EntryType::DataEntry {
                     type_str,
                     config_value,
-                }) => {}
+                }) => {
+                    println!("DataEntry: {:?}", type_str);
+                }
                 Ok(EntryType::NameEntry { type_str, name }) => {
                     let data = data_sheet
                         .retrieve_cell_data(&name)
                         .map_err(|_| LayoutError::FailedToExtract(name.to_string()))?;
+                    println!("NameEntry: {:?}", name);
                 }
                 Ok(EntryType::NestedTable(nested_table)) => {
                     Self::build_bytestream_inner(
@@ -194,34 +197,5 @@ where
 
     pub fn value_to_bytes(&self, value: &DataValue) -> Vec<u8> {
         value.to_bytes(self.endianness)
-    }
-
-    // Getter methods
-    pub fn start_address(&self) -> &u32 {
-        &self.start_address
-    }
-
-    pub fn length(&self) -> &u32 {
-        &self.length
-    }
-
-    pub fn padding(&self) -> &DataValue {
-        &self.padding
-    }
-
-    pub fn crc_poly(&self) -> u32 {
-        self.crc_data.polynomial
-    }
-
-    pub fn crc_location(&self) -> &u32 {
-        &self.crc_data.location
-    }
-
-    pub fn data(&self) -> &T {
-        &self.data
-    }
-
-    pub fn data_mut(&mut self) -> &mut T {
-        &mut self.data
     }
 }

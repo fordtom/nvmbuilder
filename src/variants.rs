@@ -131,4 +131,6 @@ impl DataSheet {
 
         Err(VariantError::RowNotFound)
     }
+
+    // TODO: retrieve sheets by name, data format to be decided
 }
