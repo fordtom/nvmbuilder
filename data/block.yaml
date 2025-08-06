@@ -24,4 +24,5 @@ block:
 # Excluding arrays for now
 # another.struct.value:
 #   name: "Array"
-#   type: [10, "u16", "u16"]
+#   type: u16
+#   size: [10, 2]

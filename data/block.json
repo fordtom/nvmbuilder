@@ -24,6 +24,14 @@
             "some.struct.value2": {
                 "name": "Value 2",
                 "type": "u32"
+            },
+            "another.struct.value": {
+                "name": "Array",
+                "type": "u16",
+                "size": [
+                    10,
+                    2
+                ]
             }
         }
     }
