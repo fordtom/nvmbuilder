@@ -1,5 +1,4 @@
 mod config;
-mod conversions;
 mod types;
 
 use crate::variants::DataSheet;
@@ -43,6 +42,9 @@ pub enum LayoutError {
 
     #[error("Bytestream assembly failed: {0}")]
     BytestreamAssemblyFailed(String),
+
+    #[error("Misc error: {0}")]
+    MiscError(String),
 }
 
 #[derive(Debug)]
