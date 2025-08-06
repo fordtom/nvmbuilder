@@ -11,4 +11,5 @@ intelhex = "0.2.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.142", features = ["preserve_order"] }
 serde_yaml = "0.9.34"
+thiserror = "2.0.12"
 toml = { version = "0.9.4", features = ["preserve_order"] }

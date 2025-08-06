@@ -1,27 +1,24 @@
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum VariantError {
+    #[error("Failed to read file")]
     FailedToReadFile,
+    #[error("Failed to parse file")]
     FailedToParseFile,
-    NameColumnNotFound,
-    DefaultColumnNotFound,
-    OptionalColumnNotFound,
+    #[error("Column not found: {0}")]
+    ColumnNotFound(String),
+    #[error("Row not found")]
     RowNotFound,
+    #[error("Invalid cell")]
     InvalidCell,
+    #[error("Array too long")]
     ArrayTooLong,
-    BadRecursion,
+    #[error("Bad name")]
     BadName,
 }
-
-impl std::fmt::Display for VariantError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl std::error::Error for VariantError {}
 
 pub struct DataSheet {
     names: Vec<String>,
@@ -38,7 +35,7 @@ impl DataSheet {
 
         let main_sheet = workbook
             .worksheet_range("Main")
-            .map_err(|_| VariantError::DefaultColumnNotFound)?;
+            .map_err(|_| VariantError::ColumnNotFound("Main".to_string()))?;
 
         let rows: Vec<_> = main_sheet.rows().collect();
         let data_rows = rows.len() - 1;
@@ -47,12 +44,12 @@ impl DataSheet {
         let name_index = headers
             .iter()
             .position(|cell| cell.to_string() == "Name")
-            .ok_or(VariantError::NameColumnNotFound)?;
+            .ok_or(VariantError::ColumnNotFound("Name".to_string()))?;
 
         let default_index = headers
             .iter()
             .position(|cell| cell.to_string() == "Default")
-            .ok_or(VariantError::DefaultColumnNotFound)?;
+            .ok_or(VariantError::ColumnNotFound("Default".to_string()))?;
 
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
         names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
@@ -65,7 +62,7 @@ impl DataSheet {
             let debug_index = headers
                 .iter()
                 .position(|cell| cell.to_string() == "Debug")
-                .ok_or(VariantError::OptionalColumnNotFound)?;
+                .ok_or(VariantError::ColumnNotFound("Debug".to_string()))?;
 
             let mut debug_vec: Vec<Data> = Vec::with_capacity(data_rows);
             debug_vec.extend(rows.iter().skip(1).map(|row| row[debug_index].clone()));
@@ -78,7 +75,7 @@ impl DataSheet {
             let variant_index = headers
                 .iter()
                 .position(|cell| cell.to_string() == *name)
-                .ok_or(VariantError::OptionalColumnNotFound)?;
+                .ok_or(VariantError::ColumnNotFound(name.to_string()))?;
 
             let mut variant_vec: Vec<Data> = Vec::with_capacity(data_rows);
             variant_vec.extend(rows.iter().skip(1).map(|row| row[variant_index].clone()));
@@ -103,45 +100,7 @@ impl DataSheet {
         })
     }
 
-    pub fn walk_data_section(&self, table: &mut toml::Table) -> Result<(), VariantError> {
-        for (_, value) in table.iter_mut() {
-            if let toml::Value::Table(nested_table) = value {
-                if nested_table.contains_key("value") && nested_table.contains_key("type") {
-                    // skip as this is already populated
-                } else if nested_table.contains_key("name") && nested_table.contains_key("type") {
-                    // populate this
-                    let name = nested_table
-                        .get("name")
-                        .unwrap()
-                        .as_str()
-                        .ok_or(VariantError::BadName)?;
-
-                    let data = self.retrieve_cell_data(name)?;
-                    match data {
-                        Data::Int(_) | Data::Float(_) => {
-                            let toml_value = self.single_data_to_toml(data)?;
-                            nested_table.insert("value".to_string(), toml_value);
-                        }
-                        Data::String(_) => {
-                            // TODO: Arrays and strings
-                        }
-                        _ => {
-                            return Err(VariantError::InvalidCell);
-                        }
-                    }
-                } else {
-                    // Step into the next table
-                    self.walk_data_section(nested_table)?;
-                }
-            } else {
-                // We somehow reached an invalid value
-                return Err(VariantError::BadRecursion);
-            }
-        }
-        Ok(())
-    }
-
-    fn retrieve_cell_data(&self, name: &str) -> Result<Data, VariantError> {
+    pub fn retrieve_cell_data(&self, name: &str) -> Result<Data, VariantError> {
         let index = self
             .names
             .iter()
@@ -171,13 +130,5 @@ impl DataSheet {
         }
 
         Err(VariantError::RowNotFound)
-    }
-
-    fn single_data_to_toml(&self, data: Data) -> Result<toml::Value, VariantError> {
-        match data {
-            Data::Int(i) => Ok(toml::Value::Integer(i)),
-            Data::Float(f) => Ok(toml::Value::Float(f)),
-            _ => Err(VariantError::InvalidCell),
-        }
     }
 }

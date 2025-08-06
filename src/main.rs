@@ -21,16 +21,12 @@ fn main() -> anyhow::Result<()> {
     // let args = Args::parse();
 
     let filename = "data/block.toml";
-    let file_content = std::fs::read_to_string(filename)?;
     let filetype = filename.split('.').last().unwrap();
 
     let mut flash_block = match filetype {
-        "toml" => layout::FlashBlock::<toml::Table>::new(&file_content, "block")?,
-        // "yaml" => layout::FlashBlock::<serde_yaml::Mapping>::new(&file_content, "block")?,
-        // "json" => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(
-        //     &file_content,
-        //     "block",
-        // )?,
+        "toml" => layout::FlashBlock::<toml::Table>::new(filename, "block")?,
+        // "yaml" => layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?,
+        // "json" => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(filename, "block")?,
         _ => anyhow::bail!("Unsupported file format"),
     };
 
@@ -51,17 +47,6 @@ fn main() -> anyhow::Result<()> {
             return Err(e.into());
         }
     };
-
-    // Test the walk_data_section method
-    match data_sheet.walk_data_section(&mut flash_block.data_mut()) {
-        Ok(_) => {
-            println!("✅ Successfully walked data section!");
-        }
-        Err(e) => {
-            println!("❌ Failed to walk data section: {:?}", e);
-            return Err(e.into());
-        }
-    }
 
     Ok(())
 }
