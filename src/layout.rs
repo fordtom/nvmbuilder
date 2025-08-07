@@ -118,7 +118,7 @@ where
 
     pub fn build_bytestream(&self, data_sheet: &DataSheet) -> Result<Vec<u8>, NvmError> {
         let mut buffer = Vec::with_capacity(self.length as usize);
-        let mut offset = 0u32;
+        let mut offset = 0;
         Self::build_bytestream_inner(
             &self.data,
             data_sheet,
@@ -134,26 +134,39 @@ where
         table: &dyn ConfigTable<Value = T::Value>,
         data_sheet: &DataSheet,
         buffer: &mut Vec<u8>,
-        offset: &mut u32,
+        offset: &mut usize,
         endianness: &Endianness,
         padding: &DataValue,
     ) -> Result<(), NvmError> {
         for (_, v) in table.iter() {
             match v.classify_entry() {
+                // Handle value defined in layout file
                 Ok(EntryType::DataEntry {
                     type_str,
                     config_value,
                 }) => {
                     let value = config_value.export_datavalue(&type_str)?;
                     buffer.extend(value.to_bytes(endianness));
-                    *offset += value.size_bytes() as u32;
+                    *offset += value.size_bytes();
                     println!("DataEntry: {:?}, {:?}", type_str, value);
                 }
 
-                Ok(EntryType::NameEntry { type_str, name }) => {
+                // Handle name defined in layout file
+                Ok(EntryType::NameEntry {
+                    type_str,
+                    name,
+                    size,
+                }) => {
+                    // Data here we expect to be float/int/string
                     let data = data_sheet
                         .retrieve_cell_data(&name)
                         .map_err(|_| NvmError::FailedToExtract(name.to_string()))?;
+
+                    // if no size we know it's a single value
+                    // any defined size is an array or a string
+                    // if name isn't in sheets we also know its a string
+                    // if number of columns is 0 (so size array was len-1) we know it's a string
+
                     let value = match type_str.chars().next() {
                         Some('u') | Some('i') => {}
 
@@ -167,6 +180,7 @@ where
                     println!("NameEntry: {:?}", name);
                 }
 
+                // If we have a nested table we recurse
                 Ok(EntryType::NestedTable(nested_table)) => {
                     Self::build_bytestream_inner(
                         nested_table,
@@ -177,6 +191,8 @@ where
                         padding,
                     )?;
                 }
+
+                // Pass up errors
                 Err(e) => {
                     return Err(e);
                 }

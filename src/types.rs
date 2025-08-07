@@ -69,6 +69,7 @@ pub enum EntryType<'a, V: ConfigValue> {
     NameEntry {
         type_str: String,
         name: String,
+        size: Option<(i64, i64)>,
     },
     NestedTable(&'a dyn ConfigTable<Value = V>),
 }
@@ -77,6 +78,7 @@ pub trait ConfigValue {
     fn as_integer(&self) -> Option<i64>;
     fn as_float(&self) -> Option<f64>;
     fn as_string(&self) -> Option<&str>;
+    fn as_size_tuple(&self) -> Result<Option<(i64, i64)>, NvmError>;
     fn as_bool(&self) -> Option<bool>;
     fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>>;
 
@@ -84,10 +86,12 @@ pub trait ConfigValue {
     where
         Self: Sized,
     {
+        // This should only ever be called on a table
         let table = self.as_table().ok_or(NvmError::RecursionFailed(
             "couldn't retrieve table where one was expected.".to_string(),
         ))?;
 
+        // If type exists we assume it's a data entry to extract
         if let Some(value) = table.get("type") {
             let type_str = value
                 .as_string()
@@ -96,11 +100,25 @@ pub trait ConfigValue {
                 ))?
                 .to_string();
 
+            // Grab the size option if it exists
+            let size = match table.get("size") {
+                Some(size) => size.as_size_tuple()?,
+                None => None,
+            };
+
+            // Check for value - we extract direct from the layout file and assert no size was specified
             if let Some(value) = table.get("value") {
-                Ok(EntryType::DataEntry {
-                    type_str,
-                    config_value: value,
-                })
+                match size {
+                    Some(_) => Err(NvmError::FailedToExtract(
+                        "Size found for data entry.".to_string(),
+                    )),
+                    None => Ok(EntryType::DataEntry {
+                        type_str,
+                        config_value: value,
+                    }),
+                }
+
+            // Otherwise check for a name to extract from the data sheet
             } else if let Some(name) = table.get("name") {
                 let name_str = name
                     .as_string()
@@ -111,12 +129,17 @@ pub trait ConfigValue {
                 Ok(EntryType::NameEntry {
                     type_str,
                     name: name_str,
+                    size,
                 })
+
+            // If none of these conditions match we have found an invalid entry
             } else {
                 Err(NvmError::RecursionFailed(
                     "Found an invalid entry type.".to_string(),
                 ))
             }
+
+        // No type means we continue to the next level of recursion
         } else {
             Ok(EntryType::NestedTable(table))
         }
@@ -204,6 +227,20 @@ impl ConfigValue for toml::Value {
         match self {
             toml::Value::String(s) => Some(s.as_str()),
             _ => None,
+        }
+    }
+
+    fn as_size_tuple(&self) -> Result<Option<(i64, i64)>, NvmError> {
+        match self {
+            // Matching specifically against the expected 1 or 2 elements of the size list
+            toml::Value::Array(array) if array.len() <= 2 => {
+                let rows = array[0].as_integer().ok_or(NvmError::FailedToExtract(
+                    "Non-integer number of rows found.".to_string(),
+                ))?;
+                let cols = array[1].as_integer().unwrap_or_default();
+                Ok(Some((rows, cols)))
+            }
+            _ => Ok(None),
         }
     }
 
