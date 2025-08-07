@@ -5,6 +5,7 @@ mod layout;
 mod types;
 mod variants;
 
+use crate::error::*;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -19,7 +20,7 @@ struct Args {
     config: String,
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), NvmError> {
     // let args = Args::parse();
 
     let filename = "data/block.toml";
@@ -29,7 +30,7 @@ fn main() -> anyhow::Result<()> {
         "toml" => layout::FlashBlock::<toml::Table>::new(filename, "block")?,
         // "yaml" => layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?,
         // "json" => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(filename, "block")?,
-        _ => anyhow::bail!("Unsupported file format"),
+        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
     };
 
     // Test the DataSheet constructor
