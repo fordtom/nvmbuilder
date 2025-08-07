@@ -1,19 +1,15 @@
-mod config;
-mod types;
-
+use crate::error::*;
+use crate::types::*;
 use crate::variants::DataSheet;
-use config::{ConfigTable, ConfigValue, EntryType};
 use std::fs;
-use thiserror::Error;
-use types::*;
 
 macro_rules! extract {
     ($table:expr, $key:expr, $as:ident) => {
         $table
             .get($key)
-            .ok_or(LayoutError::FailedToExtract($key.to_string()))?
+            .ok_or(NvmError::FailedToExtract($key.to_string()))?
             .$as()
-            .ok_or(LayoutError::FailedToExtract($key.to_string()))?
+            .ok_or(NvmError::FailedToExtract($key.to_string()))?
     };
 }
 
@@ -21,30 +17,9 @@ macro_rules! extract_owned {
     ($table:expr, $key:expr, $as:ident) => {{
         let value = $table
             .remove($key)
-            .ok_or(LayoutError::FailedToExtract($key.to_string()))?;
-        T::$as(value).ok_or(LayoutError::FailedToExtract($key.to_string()))?
+            .ok_or(NvmError::FailedToExtract($key.to_string()))?;
+        T::$as(value).ok_or(NvmError::FailedToExtract($key.to_string()))?
     }};
-}
-
-#[derive(Debug, Error)]
-pub enum LayoutError {
-    #[error("File error: {0}")]
-    FileError(String),
-
-    #[error("Failed to extract {0}")]
-    FailedToExtract(String),
-
-    #[error("Block not found: {0}")]
-    BlockNotFound(String),
-
-    #[error("Recursion failed: {0}")]
-    RecursionFailed(String),
-
-    #[error("Bytestream assembly failed: {0}")]
-    BytestreamAssemblyFailed(String),
-
-    #[error("Misc error: {0}")]
-    MiscError(String),
 }
 
 #[derive(Debug)]
@@ -72,13 +47,11 @@ pub struct FlashBlock<T: ConfigTable> {
 }
 
 impl FlashBlock<toml::Table> {
-    pub fn new(filename: &str, blockname: &str) -> Result<Self, LayoutError> {
-        let file_content = fs::read_to_string(filename).map_err(|_| {
-            LayoutError::FileError(("failed to open file: ".to_string() + filename).to_string())
-        })?;
-        let content: toml::Value = toml::from_str(&file_content).map_err(|_| {
-            LayoutError::FileError(("failed to parse file: ".to_string() + filename).to_string())
-        })?;
+    pub fn new(filename: &str, blockname: &str) -> Result<Self, NvmError> {
+        let file_content = fs::read_to_string(filename)
+            .map_err(|_| NvmError::FileError("failed to open file: ".to_string() + filename))?;
+        let content: toml::Value = toml::from_str(&file_content)
+            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?;
         Self::from_parsed_content(content, blockname)
     }
 }
@@ -87,17 +60,17 @@ impl<T: ConfigTable> FlashBlock<T>
 where
     T::Value: ConfigValue,
 {
-    fn from_parsed_content(content: T::Value, blockname: &str) -> Result<Self, LayoutError> {
+    fn from_parsed_content(content: T::Value, blockname: &str) -> Result<Self, NvmError> {
         // Get root table
-        let mut content = T::from_value(content).ok_or(LayoutError::FileError(
+        let mut content = T::from_value(content).ok_or(NvmError::FileError(
             "failed to extract root table.".to_string(),
         ))?;
 
         let block = content
             .remove(blockname)
-            .ok_or(LayoutError::BlockNotFound(blockname.to_string()))?;
+            .ok_or(NvmError::BlockNotFound(blockname.to_string()))?;
         let mut block_table =
-            T::from_value(block).ok_or(LayoutError::BlockNotFound(blockname.to_string()))?;
+            T::from_value(block).ok_or(NvmError::BlockNotFound(blockname.to_string()))?;
 
         let data = extract_owned!(block_table, "data", from_value);
         let header = extract!(block_table, "header", as_table);
@@ -130,7 +103,7 @@ where
         let endianness = match extract!(settings, "endianness", as_string) {
             "little" => Endianness::Little,
             "big" => Endianness::Big,
-            _ => return Err(LayoutError::FailedToExtract("endianness".to_string())),
+            _ => return Err(NvmError::FailedToExtract("endianness".to_string())),
         };
 
         Ok(Self {
@@ -143,7 +116,7 @@ where
         })
     }
 
-    pub fn build_bytestream(&self, data_sheet: &DataSheet) -> Result<Vec<u8>, LayoutError> {
+    pub fn build_bytestream(&self, data_sheet: &DataSheet) -> Result<Vec<u8>, NvmError> {
         let mut buffer = Vec::with_capacity(self.length as usize);
         let mut offset = 0u32;
         Self::build_bytestream_inner(
@@ -164,21 +137,36 @@ where
         offset: &mut u32,
         endianness: &Endianness,
         padding: &DataValue,
-    ) -> Result<(), LayoutError> {
+    ) -> Result<(), NvmError> {
         for (_, v) in table.iter() {
             match v.classify_entry() {
                 Ok(EntryType::DataEntry {
                     type_str,
                     config_value,
                 }) => {
-                    println!("DataEntry: {:?}", type_str);
+                    let value = config_value.export_datavalue(&type_str)?;
+                    buffer.extend(value.to_bytes(endianness));
+                    *offset += value.size_bytes() as u32;
+                    println!("DataEntry: {:?}, {:?}", type_str, value);
                 }
+
                 Ok(EntryType::NameEntry { type_str, name }) => {
                     let data = data_sheet
                         .retrieve_cell_data(&name)
-                        .map_err(|_| LayoutError::FailedToExtract(name.to_string()))?;
+                        .map_err(|_| NvmError::FailedToExtract(name.to_string()))?;
+                    let value = match type_str.chars().next() {
+                        Some('u') | Some('i') => {}
+
+                        Some('f') => {}
+                        _ => {
+                            return Err(NvmError::FailedToExtract(
+                                "unsupported data type.".to_string(),
+                            ));
+                        }
+                    };
                     println!("NameEntry: {:?}", name);
                 }
+
                 Ok(EntryType::NestedTable(nested_table)) => {
                     Self::build_bytestream_inner(
                         nested_table,
@@ -195,9 +183,5 @@ where
             }
         }
         Ok(())
-    }
-
-    pub fn value_to_bytes(&self, value: &DataValue) -> Vec<u8> {
-        value.to_bytes(self.endianness)
     }
 }

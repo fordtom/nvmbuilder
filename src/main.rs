@@ -1,6 +1,8 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 
+mod error;
 mod layout;
+mod types;
 mod variants;
 
 use clap::Parser;
@@ -42,7 +44,8 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    flash_block.build_bytestream(&data_sheet)?;
+    let bytestream = flash_block.build_bytestream(&data_sheet)?;
+    println!("Bytestream: {:?}", bytestream);
 
     Ok(())
 }
