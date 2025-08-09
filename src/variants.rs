@@ -18,20 +18,26 @@ impl DataSheet {
 
         let main_sheet = workbook
             .worksheet_range("Main")
-            .map_err(|_| NvmError::ColumnNotFound("Main".to_string()))?;
+            .map_err(|_| NvmError::MiscError("Main sheet not found.".to_string()))?;
 
         let rows: Vec<_> = main_sheet.rows().collect();
-        let data_rows = rows.len() - 1;
-        let headers = &rows[0];
+        let (headers, data_rows) = match rows.split_first() {
+            Some((hdr, tail)) => (hdr, tail.len()),
+            None => {
+                return Err(NvmError::RetrievalError(
+                    "invalid main sheet format.".to_string(),
+                ));
+            }
+        };
 
         let name_index = headers
             .iter()
-            .position(|cell| cell.to_string() == "Name")
+            .position(|cell| Self::cell_eq_ascii(cell, "Name"))
             .ok_or(NvmError::ColumnNotFound("Name".to_string()))?;
 
         let default_index = headers
             .iter()
-            .position(|cell| cell.to_string() == "Default")
+            .position(|cell| Self::cell_eq_ascii(cell, "Default"))
             .ok_or(NvmError::ColumnNotFound("Default".to_string()))?;
 
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
@@ -44,7 +50,7 @@ impl DataSheet {
         if debug {
             let debug_index = headers
                 .iter()
-                .position(|cell| cell.to_string() == "Debug")
+                .position(|cell| Self::cell_eq_ascii(cell, "Debug"))
                 .ok_or(NvmError::ColumnNotFound("Debug".to_string()))?;
 
             let mut debug_vec: Vec<Data> = Vec::with_capacity(data_rows);
@@ -67,7 +73,7 @@ impl DataSheet {
         };
 
         let mut sheets: HashMap<String, Range<Data>> =
-            HashMap::with_capacity(workbook.worksheets().len() - 1);
+            HashMap::with_capacity(workbook.worksheets().len().saturating_sub(1));
         for (name, sheet) in workbook.worksheets() {
             if name != "Main" {
                 sheets.insert(name.to_string(), sheet);
@@ -117,6 +123,13 @@ impl DataSheet {
         Err(NvmError::RetrievalError(
             "data not found for ".to_string() + name,
         ))
+    }
+
+    fn cell_eq_ascii(cell: &Data, target: &str) -> bool {
+        match cell {
+            Data::String(s) => s.trim().eq_ignore_ascii_case(target),
+            _ => false,
+        }
     }
 
     // TODO: retrieve sheets by name, data format to be decided

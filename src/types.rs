@@ -30,6 +30,7 @@ impl DataValue {
         }
     }
 
+    // pass ref to vec to avoid copying
     pub fn to_bytes(&self, endianness: &Endianness) -> Vec<u8> {
         match (self, endianness) {
             // Single byte values - endianness doesn't matter

@@ -7,6 +7,7 @@ mod variants;
 
 use crate::error::*;
 use clap::Parser;
+use std::path::Path;
 
 #[derive(Parser)]
 struct Args {
@@ -24,12 +25,12 @@ fn main() -> Result<(), NvmError> {
     // let args = Args::parse();
 
     let filename = "data/block.toml";
-    let filetype = filename.split('.').last().unwrap();
+    let filetype = Path::new(filename).extension().and_then(|s| s.to_str());
 
     let flash_block = match filetype {
-        "toml" => layout::FlashBlock::<toml::Table>::new(filename, "block")?,
-        // "yaml" => layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?,
-        // "json" => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(filename, "block")?,
+        Some("toml") => layout::FlashBlock::<toml::Table>::new(filename, "block")?,
+        // Some("yaml") => layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?,
+        // Some("json") => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(filename, "block")?,
         _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
     };
 
