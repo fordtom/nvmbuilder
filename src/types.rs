@@ -61,15 +61,25 @@ impl DataValue {
     }
 }
 
+pub enum EntrySource<'a, V: ConfigValue> {
+    Value(&'a V),
+    Name(String),
+}
+
 pub enum EntryType<'a, V: ConfigValue> {
-    DataEntry {
+    SingleEntry {
         type_str: String,
-        config_value: &'a V,
+        source: EntrySource<'a, V>,
     },
-    NameEntry {
+    ArrayEntry {
         type_str: String,
-        name: String,
-        size: Option<(i64, i64)>,
+        source: EntrySource<'a, V>,
+        size: (i64, i64),
+    },
+    StringEntry {
+        type_str: String,
+        source: EntrySource<'a, V>,
+        length: i64,
     },
     NestedTable(&'a dyn ConfigTable<Value = V>),
 }
@@ -78,7 +88,7 @@ pub trait ConfigValue {
     fn as_integer(&self) -> Option<i64>;
     fn as_float(&self) -> Option<f64>;
     fn as_string(&self) -> Option<&str>;
-    fn as_size_tuple(&self) -> Result<Option<(i64, i64)>, NvmError>;
+    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError>;
     fn as_bool(&self) -> Option<bool>;
     fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>>;
 
@@ -102,41 +112,38 @@ pub trait ConfigValue {
 
             // Grab the size option if it exists
             let size = match table.get("size") {
-                Some(size) => size.as_size_tuple()?,
+                Some(size) => Some(size.as_size_tuple()?),
                 None => None,
             };
 
-            // Check for value - we extract direct from the layout file and assert no size was specified
-            if let Some(value) = table.get("value") {
-                match size {
-                    Some(_) => Err(NvmError::FailedToExtract(
-                        "Size found for data entry.".to_string(),
-                    )),
-                    None => Ok(EntryType::DataEntry {
-                        type_str,
-                        config_value: value,
-                    }),
+            let source = match (table.get("value"), table.get("name")) {
+                (Some(value), None) => EntrySource::Value(value),
+                (None, Some(name)) => EntrySource::Name(
+                    name.as_string()
+                        .ok_or(NvmError::FailedToExtract(
+                            "Non-string name found.".to_string(),
+                        ))?
+                        .to_string(),
+                ),
+                _ => {
+                    return Err(NvmError::RecursionFailed(
+                        "Found neither/both value and name in the same entry.".to_string(),
+                    ));
                 }
+            };
 
-            // Otherwise check for a name to extract from the data sheet
-            } else if let Some(name) = table.get("name") {
-                let name_str = name
-                    .as_string()
-                    .ok_or(NvmError::FailedToExtract(
-                        "Non-string name found.".to_string(),
-                    ))?
-                    .to_string();
-                Ok(EntryType::NameEntry {
+            match size {
+                Some((rows, 0)) => Ok(EntryType::StringEntry {
                     type_str,
-                    name: name_str,
-                    size,
-                })
-
-            // If none of these conditions match we have found an invalid entry
-            } else {
-                Err(NvmError::RecursionFailed(
-                    "Found an invalid entry type.".to_string(),
-                ))
+                    source,
+                    length: rows,
+                }),
+                Some((rows, cols)) => Ok(EntryType::ArrayEntry {
+                    type_str,
+                    source,
+                    size: (rows, cols),
+                }),
+                None => Ok(EntryType::SingleEntry { type_str, source }),
             }
 
         // No type means we continue to the next level of recursion
@@ -230,17 +237,27 @@ impl ConfigValue for toml::Value {
         }
     }
 
-    fn as_size_tuple(&self) -> Result<Option<(i64, i64)>, NvmError> {
+    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
         match self {
             // Matching specifically against the expected 1 or 2 elements of the size list
-            toml::Value::Array(array) if array.len() <= 2 => {
+            toml::Value::Array(array) if (1..=2).contains(&array.len()) => {
                 let rows = array[0].as_integer().ok_or(NvmError::FailedToExtract(
                     "Non-integer number of rows found.".to_string(),
                 ))?;
-                let cols = array[1].as_integer().unwrap_or_default();
-                Ok(Some((rows, cols)))
+
+                let cols = if let Some(v) = array.get(1) {
+                    v.as_integer().ok_or(NvmError::FailedToExtract(
+                        "Non-integer number of columns found.".to_string(),
+                    ))?
+                } else {
+                    0
+                };
+
+                Ok((rows, cols))
             }
-            _ => Ok(None),
+            _ => Err(NvmError::FailedToExtract(
+                "Invalid size array found.".to_string(),
+            )),
         }
     }
 

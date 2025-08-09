@@ -140,45 +140,30 @@ where
     ) -> Result<(), NvmError> {
         for (_, v) in table.iter() {
             match v.classify_entry() {
-                // Handle value defined in layout file
-                Ok(EntryType::DataEntry {
-                    type_str,
-                    config_value,
-                }) => {
-                    let value = config_value.export_datavalue(&type_str)?;
-                    buffer.extend(value.to_bytes(endianness));
-                    *offset += value.size_bytes();
-                    println!("DataEntry: {:?}, {:?}", type_str, value);
-                }
-
-                // Handle name defined in layout file
-                Ok(EntryType::NameEntry {
-                    type_str,
-                    name,
-                    size,
-                }) => {
-                    // Data here we expect to be float/int/string
-                    let data = data_sheet
-                        .retrieve_cell_data(&name)
-                        .map_err(|_| NvmError::FailedToExtract(name.to_string()))?;
-
-                    // if no size we know it's a single value
-                    // any defined size is an array or a string
-                    // if name isn't in sheets we also know its a string
-                    // if number of columns is 0 (so size array was len-1) we know it's a string
-
-                    let value = match type_str.chars().next() {
-                        Some('u') | Some('i') => {}
-
-                        Some('f') => {}
-                        _ => {
-                            return Err(NvmError::FailedToExtract(
-                                "unsupported data type.".to_string(),
-                            ));
+                // Handle single value
+                Ok(EntryType::SingleEntry { type_str, source }) => {
+                    match source {
+                        EntrySource::Value(value) => {
+                            let value = value.export_datavalue(&type_str)?;
+                            buffer.extend(value.to_bytes(endianness));
+                            *offset += value.size_bytes();
                         }
-                    };
-                    println!("NameEntry: {:?}", name);
+                        EntrySource::Name(name) => {
+                            let value = data_sheet
+                                .retrieve_cell_data(&name)
+                                .map_err(|_| NvmError::FailedToExtract(name.to_string()))?;
+
+                            // Either retrieve cell data takes types, or handle it here
+                            // let value = value.export_datavalue(&type_str)?;
+                            // buffer.extend(value.to_bytes(endianness));
+                            // *offset += value.size_bytes();
+                        }
+                    }
                 }
+
+                // Handle string (TODO)
+
+                // Handle array (TODO)
 
                 // If we have a nested table we recurse
                 Ok(EntryType::NestedTable(nested_table)) => {
@@ -195,6 +180,13 @@ where
                 // Pass up errors
                 Err(e) => {
                     return Err(e);
+                }
+
+                // temporary before we implement strings/arrays
+                _ => {
+                    return Err(NvmError::FailedToExtract(
+                        "unsupported entry type.".to_string(),
+                    ));
                 }
             }
         }
