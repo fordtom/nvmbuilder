@@ -2,6 +2,7 @@ use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 
 use crate::error::*;
+use crate::types::*;
 
 pub struct DataSheet {
     names: Vec<String>,
@@ -89,7 +90,7 @@ impl DataSheet {
         })
     }
 
-    pub fn retrieve_cell_data(&self, name: &str) -> Result<Data, NvmError> {
+    pub fn retrieve_cell_data(&self, name: &str, type_str: &str) -> Result<DataValue, NvmError> {
         let index = self
             .names
             .iter()
@@ -100,23 +101,23 @@ impl DataSheet {
 
         if let Some(debug_values) = &self.debug_values {
             if let Some(debug) = debug_values.get(index) {
-                if !matches!(debug, Data::Empty) {
-                    return Ok(debug.clone());
+                if !Self::cell_has_data(debug) {
+                    return Ok(debug.export_datavalue(type_str)?);
                 }
             }
         }
 
         if let Some(variant_values) = &self.variant_values {
             if let Some(variant) = variant_values.get(index) {
-                if !matches!(variant, Data::Empty) {
-                    return Ok(variant.clone());
+                if Self::cell_has_data(variant) {
+                    return Ok(variant.export_datavalue(type_str)?);
                 }
             }
         }
 
         if let Some(default) = self.default_values.get(index) {
-            if !matches!(default, Data::Empty) {
-                return Ok(default.clone());
+            if Self::cell_has_data(default) {
+                return Ok(default.export_datavalue(type_str)?);
             }
         }
 
@@ -132,5 +133,55 @@ impl DataSheet {
         }
     }
 
+    fn cell_has_data(cell: &Data) -> bool {
+        match cell {
+            Data::Empty => false,
+            Data::String(s) => !s.trim().is_empty(),
+            _ => true,
+        }
+    }
+
     // TODO: retrieve sheets by name, data format to be decided
+}
+
+impl ConfigValue for Data {
+    fn as_integer(&self) -> Option<i64> {
+        match self {
+            Data::Int(i) => Some(*i),
+            Data::Float(f) => Some(*f as i64),
+            _ => None,
+        }
+    }
+
+    fn as_float(&self) -> Option<f64> {
+        match self {
+            Data::Float(f) => Some(*f),
+            Data::Int(i) => Some(*i as f64),
+            _ => None,
+        }
+    }
+
+    fn as_string(&self) -> Option<&str> {
+        match self {
+            Data::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    fn as_bool(&self) -> Option<bool> {
+        match self {
+            Data::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
+        Err(NvmError::MiscError(
+            "size tuple not supported for data".to_string(),
+        ))
+    }
+
+    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
+        None
+    }
 }

@@ -79,26 +79,33 @@ where
         let crc_settings = extract!(settings, "crc", as_table);
 
         // Extract CRC data
-        let crc_polynomial = extract!(crc_settings, "polynomial", as_integer);
-        let crc_start_value = extract!(crc_settings, "start", as_integer);
-        let crc_xor_out = extract!(crc_settings, "xor_out", as_integer);
-        let crc_reflect = extract!(crc_settings, "reverse", as_bool);
-        let crc_location = extract!(header, "crc_location", as_integer);
+        let polynomial = u32::try_from(extract!(crc_settings, "polynomial", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("polynomial".to_string()))?;
+        let start_value = u32::try_from(extract!(crc_settings, "start", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("start".to_string()))?;
+        let xor_out = u32::try_from(extract!(crc_settings, "xor_out", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("xor_out".to_string()))?;
+        let reflect = extract!(crc_settings, "reverse", as_bool);
+        let location = u32::try_from(extract!(header, "crc_location", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("crc_location".to_string()))?;
 
         // Pack CRC data
         let crc_data = CrcData {
-            polynomial: crc_polynomial as u32,
-            start_value: crc_start_value as u32,
-            xor_out: crc_xor_out as u32,
-            reflect: crc_reflect,
-            location: crc_location as u32,
+            polynomial,
+            start_value,
+            xor_out,
+            reflect,
+            location,
             value: None,
         };
 
         // Extract header data
-        let start_address = extract!(header, "start_address", as_integer);
-        let length = extract!(header, "length", as_integer);
-        let padding = extract!(header, "padding", as_integer);
+        let start_address = u32::try_from(extract!(header, "start_address", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("start_address".to_string()))?;
+        let length = u32::try_from(extract!(header, "length", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("length".to_string()))?;
+        let padding = u8::try_from(extract!(header, "padding", as_integer))
+            .map_err(|_| NvmError::FailedToExtract("padding".to_string()))?;
 
         let endianness = match extract!(settings, "endianness", as_string) {
             "little" => Endianness::Little,
@@ -107,9 +114,9 @@ where
         };
 
         Ok(Self {
-            start_address: start_address as u32,
-            length: length as u32,
-            padding: DataValue::U8(padding as u8),
+            start_address,
+            length,
+            padding: DataValue::U8(padding),
             endianness,
             crc_data,
             data,
@@ -142,23 +149,14 @@ where
             match v.classify_entry() {
                 // Handle single value
                 Ok(EntryType::SingleEntry { type_str, source }) => {
-                    match source {
-                        EntrySource::Value(value) => {
-                            let value = value.export_datavalue(&type_str)?;
-                            buffer.extend(value.to_bytes(endianness));
-                            *offset += value.size_bytes();
-                        }
+                    let data_value = match source {
+                        EntrySource::Value(value) => value.export_datavalue(&type_str)?,
                         EntrySource::Name(name) => {
-                            let value = data_sheet
-                                .retrieve_cell_data(&name)
-                                .map_err(|_| NvmError::FailedToExtract(name.to_string()))?;
-
-                            // Either retrieve cell data takes types, or handle it here
-                            // let value = value.export_datavalue(&type_str)?;
-                            // buffer.extend(value.to_bytes(endianness));
-                            // *offset += value.size_bytes();
+                            data_sheet.retrieve_cell_data(&name, &type_str)?
                         }
-                    }
+                    };
+                    buffer.extend(data_value.to_bytes(endianness));
+                    *offset += data_value.size_bytes();
                 }
 
                 // Handle string (TODO)

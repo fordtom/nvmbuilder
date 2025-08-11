@@ -156,44 +156,57 @@ pub trait ConfigValue {
     fn export_datavalue(&self, type_str: &str) -> Result<DataValue, NvmError> {
         let value = match type_str {
             "u8" => DataValue::U8(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as u8,
+                u8::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "u16" => DataValue::U16(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as u16,
+                u16::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "u32" => DataValue::U32(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as u32,
+                u32::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "u64" => DataValue::U64(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as u64,
+                u64::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "i8" => DataValue::I8(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as i8,
+                i8::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "i16" => DataValue::I16(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as i16,
+                i16::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "i32" => DataValue::I32(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as i32,
+                i32::try_from(
+                    self.as_integer()
+                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
+                )
+                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "i64" => DataValue::I64(
                 self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as i64,
+                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             "f32" => DataValue::F32(
                 self.as_float()
@@ -202,8 +215,7 @@ pub trait ConfigValue {
             ),
             "f64" => DataValue::F64(
                 self.as_float()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as f64,
+                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
             ),
             _ => {
                 return Err(NvmError::DataValueExportFailed(
