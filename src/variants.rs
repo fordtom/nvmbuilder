@@ -136,7 +136,7 @@ impl DataSheet {
     fn cell_is_empty(cell: &Data) -> bool {
         match cell {
             Data::Empty => true,
-            Data::String(s) => !s.trim().is_empty(),
+            Data::String(s) => s.trim().is_empty(),
             _ => false,
         }
     }
