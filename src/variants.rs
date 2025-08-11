@@ -101,7 +101,7 @@ impl DataSheet {
 
         if let Some(debug_values) = &self.debug_values {
             if let Some(debug) = debug_values.get(index) {
-                if !Self::cell_has_data(debug) {
+                if !Self::cell_is_empty(debug) {
                     return Ok(debug.export_datavalue(type_str)?);
                 }
             }
@@ -109,14 +109,14 @@ impl DataSheet {
 
         if let Some(variant_values) = &self.variant_values {
             if let Some(variant) = variant_values.get(index) {
-                if Self::cell_has_data(variant) {
+                if !Self::cell_is_empty(variant) {
                     return Ok(variant.export_datavalue(type_str)?);
                 }
             }
         }
 
         if let Some(default) = self.default_values.get(index) {
-            if Self::cell_has_data(default) {
+            if !Self::cell_is_empty(default) {
                 return Ok(default.export_datavalue(type_str)?);
             }
         }
@@ -133,11 +133,11 @@ impl DataSheet {
         }
     }
 
-    fn cell_has_data(cell: &Data) -> bool {
+    fn cell_is_empty(cell: &Data) -> bool {
         match cell {
-            Data::Empty => false,
+            Data::Empty => true,
             Data::String(s) => !s.trim().is_empty(),
-            _ => true,
+            _ => false,
         }
     }
 
