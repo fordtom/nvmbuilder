@@ -322,3 +322,214 @@ impl ConfigTable for toml::Table {
         }
     }
 }
+
+// JSON implementations
+impl ConfigValue for serde_json::Value {
+    fn as_integer(&self) -> Option<i64> {
+        match self {
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Some(i)
+                } else if let Some(u) = n.as_u64() {
+                    i64::try_from(u).ok()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn as_float(&self) -> Option<f64> {
+        match self {
+            serde_json::Value::Number(n) => {
+                if let Some(f) = n.as_f64() {
+                    Some(f)
+                } else if let Some(i) = n.as_i64() {
+                    Some(i as f64)
+                } else if let Some(u) = n.as_u64() {
+                    Some(u as f64)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn as_string(&self) -> Option<&str> {
+        match self {
+            serde_json::Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
+        match self {
+            serde_json::Value::Array(array) if (1..=2).contains(&array.len()) => {
+                let rows = array[0]
+                    .as_integer()
+                    .ok_or(NvmError::FailedToExtract(
+                        "Non-integer number of rows found.".to_string(),
+                    ))?;
+
+                let cols = if let Some(v) = array.get(1) {
+                    v.as_integer().ok_or(NvmError::FailedToExtract(
+                        "Non-integer number of columns found.".to_string(),
+                    ))?
+                } else {
+                    0
+                };
+
+                Ok((rows, cols))
+            }
+            _ => Err(NvmError::FailedToExtract(
+                "Invalid size array found.".to_string(),
+            )),
+        }
+    }
+
+    fn as_bool(&self) -> Option<bool> {
+        match self {
+            serde_json::Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
+        match self {
+            serde_json::Value::Object(map) => Some(map),
+            _ => None,
+        }
+    }
+}
+
+impl ConfigTable for serde_json::Map<String, serde_json::Value> {
+    type Value = serde_json::Value;
+
+    fn get(&self, key: &str) -> Option<&Self::Value> {
+        self.get(key)
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::Value)> + '_> {
+        Box::new(self.iter().map(|(k, v)| (k.as_str(), v)))
+    }
+
+    fn remove(&mut self, key: &str) -> Option<Self::Value> {
+        self.remove(key)
+    }
+
+    fn from_value(value: Self::Value) -> Option<Self> {
+        match value {
+            serde_json::Value::Object(map) => Some(map),
+            _ => None,
+        }
+    }
+}
+
+// YAML implementations
+impl ConfigValue for serde_yaml::Value {
+    fn as_integer(&self) -> Option<i64> {
+        match self {
+            serde_yaml::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Some(i)
+                } else if let Some(u) = n.as_u64() {
+                    i64::try_from(u).ok()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn as_float(&self) -> Option<f64> {
+        match self {
+            serde_yaml::Value::Number(n) => {
+                if let Some(f) = n.as_f64() {
+                    Some(f)
+                } else if let Some(i) = n.as_i64() {
+                    Some(i as f64)
+                } else if let Some(u) = n.as_u64() {
+                    Some(u as f64)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn as_string(&self) -> Option<&str> {
+        match self {
+            serde_yaml::Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
+        match self {
+            serde_yaml::Value::Sequence(array) if (1..=2).contains(&array.len()) => {
+                let rows = array[0]
+                    .as_integer()
+                    .ok_or(NvmError::FailedToExtract(
+                        "Non-integer number of rows found.".to_string(),
+                    ))?;
+
+                let cols = if let Some(v) = array.get(1) {
+                    v.as_integer().ok_or(NvmError::FailedToExtract(
+                        "Non-integer number of columns found.".to_string(),
+                    ))?
+                } else {
+                    0
+                };
+
+                Ok((rows, cols))
+            }
+            _ => Err(NvmError::FailedToExtract(
+                "Invalid size array found.".to_string(),
+            )),
+        }
+    }
+
+    fn as_bool(&self) -> Option<bool> {
+        match self {
+            serde_yaml::Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
+        match self {
+            serde_yaml::Value::Mapping(map) => Some(map),
+            _ => None,
+        }
+    }
+}
+
+impl ConfigTable for serde_yaml::Mapping {
+    type Value = serde_yaml::Value;
+
+    fn get(&self, key: &str) -> Option<&Self::Value> {
+        self.get(&serde_yaml::Value::String(key.to_string()))
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::Value)> + '_> {
+        Box::new(self.iter().filter_map(|(k, v)| match k {
+            serde_yaml::Value::String(s) => Some((s.as_str(), v)),
+            _ => None,
+        }))
+    }
+
+    fn remove(&mut self, key: &str) -> Option<Self::Value> {
+        self.remove(&serde_yaml::Value::String(key.to_string()))
+    }
+
+    fn from_value(value: Self::Value) -> Option<Self> {
+        match value {
+            serde_yaml::Value::Mapping(map) => Some(map),
+            _ => None,
+        }
+    }
+}

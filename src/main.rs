@@ -27,13 +27,6 @@ fn main() -> Result<(), NvmError> {
     let filename = "data/block.toml";
     let filetype = Path::new(filename).extension().and_then(|s| s.to_str());
 
-    let flash_block = match filetype {
-        Some("toml") => layout::FlashBlock::<toml::Table>::new(filename, "block")?,
-        // Some("yaml") => layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?,
-        // Some("json") => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(filename, "block")?,
-        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
-    };
-
     // Test the DataSheet constructor
     let data_sheet = match variants::DataSheet::new("data/data.xlsx", Some("VarA"), true) {
         Ok(data_sheet) => {
@@ -46,7 +39,24 @@ fn main() -> Result<(), NvmError> {
         }
     };
 
-    let bytestream = flash_block.build_bytestream(&data_sheet)?;
+    let bytestream = match filetype {
+        Some("toml") => {
+            let flash_block = layout::FlashBlock::<toml::Table>::new(filename, "block")?;
+            flash_block.build_bytestream(&data_sheet)?
+        }
+        Some("yaml") | Some("yml") => {
+            let flash_block = layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?;
+            flash_block.build_bytestream(&data_sheet)?
+        }
+        Some("json") => {
+            let flash_block = layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(
+                filename, "block",
+            )?;
+            flash_block.build_bytestream(&data_sheet)?
+        }
+        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
+    };
+
     println!("Bytestream: {:?}", bytestream);
 
     Ok(())
