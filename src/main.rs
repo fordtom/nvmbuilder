@@ -9,6 +9,8 @@ use crate::error::*;
 use clap::Parser;
 use std::path::Path;
 
+use crate::layout::FlashBlockDyn;
+
 #[derive(Parser)]
 struct Args {
     #[arg(
@@ -27,6 +29,18 @@ fn main() -> Result<(), NvmError> {
     let filename = "data/block.toml";
     let filetype = Path::new(filename).extension().and_then(|s| s.to_str());
 
+    let flash_block: Box<dyn FlashBlockDyn> = match filetype {
+        Some("toml") => Box::new(layout::FlashBlock::<toml::Table>::new(filename, "block")?),
+        Some("yaml") | Some("yml") =>
+            Box::new(layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?),
+        Some("json") => Box::new(
+            layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(
+                filename, "block",
+            )?,
+        ),
+        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
+    };
+
     // Test the DataSheet constructor
     let data_sheet = match variants::DataSheet::new("data/data.xlsx", Some("VarA"), true) {
         Ok(data_sheet) => {
@@ -39,23 +53,7 @@ fn main() -> Result<(), NvmError> {
         }
     };
 
-    let bytestream = match filetype {
-        Some("toml") => {
-            let flash_block = layout::FlashBlock::<toml::Table>::new(filename, "block")?;
-            flash_block.build_bytestream(&data_sheet)?
-        }
-        Some("yaml") | Some("yml") => {
-            let flash_block = layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?;
-            flash_block.build_bytestream(&data_sheet)?
-        }
-        Some("json") => {
-            let flash_block = layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(
-                filename, "block",
-            )?;
-            flash_block.build_bytestream(&data_sheet)?
-        }
-        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
-    };
+    let bytestream = flash_block.build_bytestream_dyn(&data_sheet)?;
 
     println!("Bytestream: {:?}", bytestream);
 

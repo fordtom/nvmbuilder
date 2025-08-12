@@ -46,6 +46,19 @@ pub struct FlashBlock<T: ConfigTable> {
     pub data: T,
 }
 
+pub trait FlashBlockDyn {
+    fn build_bytestream_dyn(&self, data_sheet: &DataSheet) -> Result<Vec<u8>, NvmError>;
+}
+
+impl<T: ConfigTable> FlashBlockDyn for FlashBlock<T>
+where
+    T::Value: ConfigValue,
+{
+    fn build_bytestream_dyn(&self, data_sheet: &DataSheet) -> Result<Vec<u8>, NvmError> {
+        self.build_bytestream(data_sheet)
+    }
+}
+
 impl FlashBlock<toml::Table> {
     pub fn new(filename: &str, blockname: &str) -> Result<Self, NvmError> {
         let file_content = fs::read_to_string(filename)
