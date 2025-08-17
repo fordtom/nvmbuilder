@@ -1,535 +1,151 @@
 use crate::error::*;
+use crate::variants::DataSheet;
+use serde::Deserialize;
+use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Copy)]
+// this is the top level struct that contains the settings and the block
+#[derive(Debug, Deserialize)]
+pub struct Config {
+    pub settings: Settings,
+    #[serde(flatten)]
+    pub blocks: BTreeMap<String, Block>,
+}
+
+fn default_padding() -> u8 {
+    0xFF
+}
+
+#[derive(Debug, Deserialize, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
 pub enum Endianness {
     Little,
     Big,
 }
 
-#[derive(Debug, Clone)]
-pub enum DataValue {
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-    F32(f32),
-    F64(f64),
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub endianness: Endianness,
+    pub crc: CrcData,
+    #[serde(default = "default_padding")]
+    pub padding: u8,
 }
 
-impl DataValue {
+#[derive(Debug, Deserialize)]
+pub struct CrcData {
+    pub polynomial: u32,
+    pub start: u32,
+    pub xor_out: u32,
+    pub reverse: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Block {
+    pub header: Header,
+    pub data: Entry,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Header {
+    pub start_address: u32,
+    pub length: u32,
+    pub crc_location: u32,
+    pub padding: Option<u8>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum ScalarType {
+    #[serde(rename = "u8")]
+    U8,
+    #[serde(rename = "u16")]
+    U16,
+    #[serde(rename = "u32")]
+    U32,
+    #[serde(rename = "u64")]
+    U64,
+    #[serde(rename = "i8")]
+    I8,
+    #[serde(rename = "i16")]
+    I16,
+    #[serde(rename = "i32")]
+    I32,
+    #[serde(rename = "i64")]
+    I64,
+    #[serde(rename = "f32")]
+    F32,
+    #[serde(rename = "f64")]
+    F64,
+}
+
+impl ScalarType {
     pub fn size_bytes(&self) -> usize {
         match self {
-            DataValue::U8(_) | DataValue::I8(_) => 1,
-            DataValue::U16(_) | DataValue::I16(_) => 2,
-            DataValue::U32(_) | DataValue::I32(_) | DataValue::F32(_) => 4,
-            DataValue::U64(_) | DataValue::I64(_) | DataValue::F64(_) => 8,
+            ScalarType::U8 | ScalarType::I8 => 1,
+            ScalarType::U16 | ScalarType::I16 => 2,
+            ScalarType::U32 | ScalarType::I32 | ScalarType::F32 => 4,
+            ScalarType::U64 | ScalarType::I64 | ScalarType::F64 => 8,
         }
     }
+}
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum DataValueRepr {
+    U64(u64),
+    I64(i64),
+    F64(f64),
+    Bool(bool),
+    String(String),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValueSource {
+    pub value: DataValueRepr,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NameSource {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum EntrySource {
+    Value(ValueSource),
+    Name(NameSource),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LeafEntry {
+    #[serde(rename = "type")]
+    pub scalar_type: ScalarType,
+    #[serde(flatten)]
+    pub source: EntrySource,
+    size: Option<[usize; 2]>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Entry {
+    Leaf(LeafEntry),
+    Branch(BTreeMap<String, Entry>),
+}
+
+impl LeafEntry {
     // pass ref to vec to avoid copying
-    pub fn to_bytes(&self, endianness: &Endianness) -> Vec<u8> {
-        match (self, endianness) {
-            // Single byte values - endianness doesn't matter
-            (DataValue::U8(val), _) => vec![*val],
-            (DataValue::I8(val), _) => vec![*val as u8],
+    // pub fn emit_bytes(&self, data_sheet: &DataSheet, endianness: &Endianness) -> Vec<u8> {
+    //     let value = self.get_value(data_sheet)?;
 
-            // Multi-byte unsigned integers
-            (DataValue::U16(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::U16(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-            (DataValue::U32(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::U32(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-            (DataValue::U64(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::U64(val), Endianness::Big) => val.to_be_bytes().to_vec(),
+    //     // as examples for byte export
+    //     // (DataValue::F64(val), Endianness::Little) => val.to_le_bytes().to_vec(),
+    //     // (DataValue::F64(val), Endianness::Big) => val.to_be_bytes().to_vec(),
+    // }
 
-            // Multi-byte signed integers
-            (DataValue::I16(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::I16(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-            (DataValue::I32(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::I32(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-            (DataValue::I64(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::I64(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-
-            // Floating point numbers
-            (DataValue::F32(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::F32(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-            (DataValue::F64(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-            (DataValue::F64(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-        }
-    }
-}
-
-pub enum EntrySource<'a, V: ConfigValue> {
-    Value(&'a V),
-    Name(String),
-}
-
-pub enum EntryType<'a, V: ConfigValue> {
-    SingleEntry {
-        type_str: String,
-        source: EntrySource<'a, V>,
-    },
-    ArrayEntry {
-        type_str: String,
-        source: EntrySource<'a, V>,
-        size: (i64, i64),
-    },
-    StringEntry {
-        type_str: String,
-        source: EntrySource<'a, V>,
-        length: i64,
-    },
-    NestedTable(&'a dyn ConfigTable<Value = V>),
-}
-
-pub trait ConfigValue {
-    fn as_integer(&self) -> Option<i64>;
-    fn as_float(&self) -> Option<f64>;
-    fn as_string(&self) -> Option<&str>;
-    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError>;
-    fn as_bool(&self) -> Option<bool>;
-    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>>;
-
-    fn classify_entry(&self) -> Result<EntryType<Self>, NvmError>
-    where
-        Self: Sized,
-    {
-        // This should only ever be called on a table
-        let table = self.as_table().ok_or(NvmError::RecursionFailed(
-            "couldn't retrieve table where one was expected.".to_string(),
-        ))?;
-
-        // If type exists we assume it's a data entry to extract
-        if let Some(value) = table.get("type") {
-            let type_str = value
-                .as_string()
-                .ok_or(NvmError::FailedToExtract(
-                    "Non-string type found.".to_string(),
-                ))?
-                .to_string();
-
-            // Grab the size option if it exists
-            let size = match table.get("size") {
-                Some(size) => Some(size.as_size_tuple()?),
-                None => None,
-            };
-
-            let source = match (table.get("value"), table.get("name")) {
-                (Some(value), None) => EntrySource::Value(value),
-                (None, Some(name)) => EntrySource::Name(
-                    name.as_string()
-                        .ok_or(NvmError::FailedToExtract(
-                            "Non-string name found.".to_string(),
-                        ))?
-                        .to_string(),
-                ),
-                _ => {
-                    return Err(NvmError::RecursionFailed(
-                        "Found neither/both value and name in the same entry.".to_string(),
-                    ));
-                }
-            };
-
-            match size {
-                Some((rows, 0)) => Ok(EntryType::StringEntry {
-                    type_str,
-                    source,
-                    length: rows,
-                }),
-                Some((rows, cols)) => Ok(EntryType::ArrayEntry {
-                    type_str,
-                    source,
-                    size: (rows, cols),
-                }),
-                None => Ok(EntryType::SingleEntry { type_str, source }),
-            }
-
-        // No type means we continue to the next level of recursion
-        } else {
-            Ok(EntryType::NestedTable(table))
-        }
-    }
-
-    fn export_datavalue(&self, type_str: &str) -> Result<DataValue, NvmError> {
-        let value = match type_str {
-            "u8" => DataValue::U8(
-                u8::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "u16" => DataValue::U16(
-                u16::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "u32" => DataValue::U32(
-                u32::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "u64" => DataValue::U64(
-                u64::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "i8" => DataValue::I8(
-                i8::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "i16" => DataValue::I16(
-                i16::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "i32" => DataValue::I32(
-                i32::try_from(
-                    self.as_integer()
-                        .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-                )
-                .map_err(|_| NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "i64" => DataValue::I64(
-                self.as_integer()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            "f32" => DataValue::F32(
-                self.as_float()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?
-                    as f32,
-            ),
-            "f64" => DataValue::F64(
-                self.as_float()
-                    .ok_or(NvmError::DataValueExportFailed(type_str.to_string()))?,
-            ),
-            _ => {
-                return Err(NvmError::DataValueExportFailed(
-                    "unsupported data type: ".to_string() + type_str,
-                ));
-            }
-        };
-        Ok(value)
-    }
-}
-
-impl ConfigValue for toml::Value {
-    fn as_integer(&self) -> Option<i64> {
-        match self {
-            toml::Value::Integer(n) => Some(*n),
-            _ => None,
-        }
-    }
-
-    fn as_float(&self) -> Option<f64> {
-        match self {
-            toml::Value::Float(f) => Some(*f),
-            toml::Value::Integer(n) => Some(*n as f64),
-            _ => None,
-        }
-    }
-
-    fn as_string(&self) -> Option<&str> {
-        match self {
-            toml::Value::String(s) => Some(s.as_str()),
-            _ => None,
-        }
-    }
-
-    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
-        match self {
-            // Matching specifically against the expected 1 or 2 elements of the size list
-            toml::Value::Array(array) if (1..=2).contains(&array.len()) => {
-                let rows = array[0].as_integer().ok_or(NvmError::FailedToExtract(
-                    "Non-integer number of rows found.".to_string(),
-                ))?;
-
-                let cols = if let Some(v) = array.get(1) {
-                    v.as_integer().ok_or(NvmError::FailedToExtract(
-                        "Non-integer number of columns found.".to_string(),
-                    ))?
-                } else {
-                    0
-                };
-
-                Ok((rows, cols))
-            }
-            _ => Err(NvmError::FailedToExtract(
-                "Invalid size array found.".to_string(),
-            )),
-        }
-    }
-
-    fn as_bool(&self) -> Option<bool> {
-        match self {
-            toml::Value::Boolean(b) => Some(*b),
-            _ => None,
-        }
-    }
-
-    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
-        match self {
-            toml::Value::Table(table) => Some(table),
-            _ => None,
-        }
-    }
-}
-pub trait ConfigTable {
-    type Value: ConfigValue;
-
-    fn get(&self, key: &str) -> Option<&Self::Value>;
-    fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::Value)> + '_>;
-    fn remove(&mut self, key: &str) -> Option<Self::Value>;
-
-    fn from_value(value: Self::Value) -> Option<Self>
-    where
-        Self: Sized;
-}
-
-impl ConfigTable for toml::Table {
-    type Value = toml::Value;
-
-    fn get(&self, key: &str) -> Option<&Self::Value> {
-        self.get(key)
-    }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::Value)> + '_> {
-        Box::new(self.iter().map(|(k, v)| (k.as_str(), v)))
-    }
-
-    fn remove(&mut self, key: &str) -> Option<Self::Value> {
-        self.remove(key)
-    }
-
-    fn from_value(value: Self::Value) -> Option<Self> {
-        match value {
-            toml::Value::Table(table) => Some(table),
-            _ => None,
-        }
-    }
-}
-
-// JSON implementations
-impl ConfigValue for serde_json::Value {
-    fn as_integer(&self) -> Option<i64> {
-        match self {
-            serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    Some(i)
-                } else if let Some(u) = n.as_u64() {
-                    i64::try_from(u).ok()
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-
-    fn as_float(&self) -> Option<f64> {
-        match self {
-            serde_json::Value::Number(n) => {
-                if let Some(f) = n.as_f64() {
-                    Some(f)
-                } else if let Some(i) = n.as_i64() {
-                    Some(i as f64)
-                } else if let Some(u) = n.as_u64() {
-                    Some(u as f64)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-
-    fn as_string(&self) -> Option<&str> {
-        match self {
-            serde_json::Value::String(s) => Some(s.as_str()),
-            _ => None,
-        }
-    }
-
-    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
-        match self {
-            serde_json::Value::Array(array) if (1..=2).contains(&array.len()) => {
-                let rows = array[0]
-                    .as_integer()
-                    .ok_or(NvmError::FailedToExtract(
-                        "Non-integer number of rows found.".to_string(),
-                    ))?;
-
-                let cols = if let Some(v) = array.get(1) {
-                    v.as_integer().ok_or(NvmError::FailedToExtract(
-                        "Non-integer number of columns found.".to_string(),
-                    ))?
-                } else {
-                    0
-                };
-
-                Ok((rows, cols))
-            }
-            _ => Err(NvmError::FailedToExtract(
-                "Invalid size array found.".to_string(),
-            )),
-        }
-    }
-
-    fn as_bool(&self) -> Option<bool> {
-        match self {
-            serde_json::Value::Bool(b) => Some(*b),
-            _ => None,
-        }
-    }
-
-    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
-        match self {
-            serde_json::Value::Object(map) => Some(map),
-            _ => None,
-        }
-    }
-}
-
-impl ConfigTable for serde_json::Map<String, serde_json::Value> {
-    type Value = serde_json::Value;
-
-    fn get(&self, key: &str) -> Option<&Self::Value> {
-        self.get(key)
-    }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::Value)> + '_> {
-        Box::new(self.iter().map(|(k, v)| (k.as_str(), v)))
-    }
-
-    fn remove(&mut self, key: &str) -> Option<Self::Value> {
-        self.remove(key)
-    }
-
-    fn from_value(value: Self::Value) -> Option<Self> {
-        match value {
-            serde_json::Value::Object(map) => Some(map),
-            _ => None,
-        }
-    }
-}
-
-// YAML implementations
-impl ConfigValue for serde_yaml::Value {
-    fn as_integer(&self) -> Option<i64> {
-        match self {
-            serde_yaml::Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    Some(i)
-                } else if let Some(u) = n.as_u64() {
-                    i64::try_from(u).ok()
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-
-    fn as_float(&self) -> Option<f64> {
-        match self {
-            serde_yaml::Value::Number(n) => {
-                if let Some(f) = n.as_f64() {
-                    Some(f)
-                } else if let Some(i) = n.as_i64() {
-                    Some(i as f64)
-                } else if let Some(u) = n.as_u64() {
-                    Some(u as f64)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
-
-    fn as_string(&self) -> Option<&str> {
-        match self {
-            serde_yaml::Value::String(s) => Some(s.as_str()),
-            _ => None,
-        }
-    }
-
-    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
-        match self {
-            serde_yaml::Value::Sequence(array) if (1..=2).contains(&array.len()) => {
-                let rows = array[0]
-                    .as_integer()
-                    .ok_or(NvmError::FailedToExtract(
-                        "Non-integer number of rows found.".to_string(),
-                    ))?;
-
-                let cols = if let Some(v) = array.get(1) {
-                    v.as_integer().ok_or(NvmError::FailedToExtract(
-                        "Non-integer number of columns found.".to_string(),
-                    ))?
-                } else {
-                    0
-                };
-
-                Ok((rows, cols))
-            }
-            _ => Err(NvmError::FailedToExtract(
-                "Invalid size array found.".to_string(),
-            )),
-        }
-    }
-
-    fn as_bool(&self) -> Option<bool> {
-        match self {
-            serde_yaml::Value::Bool(b) => Some(*b),
-            _ => None,
-        }
-    }
-
-    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
-        match self {
-            serde_yaml::Value::Mapping(map) => Some(map),
-            _ => None,
-        }
-    }
-}
-
-impl ConfigTable for serde_yaml::Mapping {
-    type Value = serde_yaml::Value;
-
-    fn get(&self, key: &str) -> Option<&Self::Value> {
-        self.get(&serde_yaml::Value::String(key.to_string()))
-    }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = (&str, &Self::Value)> + '_> {
-        Box::new(self.iter().filter_map(|(k, v)| match k {
-            serde_yaml::Value::String(s) => Some((s.as_str(), v)),
-            _ => None,
-        }))
-    }
-
-    fn remove(&mut self, key: &str) -> Option<Self::Value> {
-        self.remove(&serde_yaml::Value::String(key.to_string()))
-    }
-
-    fn from_value(value: Self::Value) -> Option<Self> {
-        match value {
-            serde_yaml::Value::Mapping(map) => Some(map),
-            _ => None,
-        }
-    }
+    // fn get_value(&self, data_sheet: &DataSheet) -> Result<DataValue, NvmError> {
+    //     match self.source {
+    //         EntrySource::Value(value) => Ok(value.value),
+    //         EntrySource::Name(name) => data_sheet.retrieve_cell_data(&name, &self.scalar_type),
+    //     }
+    // }
 }
