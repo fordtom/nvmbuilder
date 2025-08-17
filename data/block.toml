@@ -1,5 +1,5 @@
 [settings]
-padding = 0xFF        # to get rid of?
+# padding = 0xFF        # to get rid of?
 endianness = "little"
 
 [settings.crc]

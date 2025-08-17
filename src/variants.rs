@@ -1,4 +1,4 @@
-use calamine::{Data, Range, Reader, Xlsx, open_workbook};
+use calamine::{open_workbook, Data, Range, Reader, Xlsx};
 use std::collections::HashMap;
 
 use crate::error::*;
@@ -90,41 +90,41 @@ impl DataSheet {
         })
     }
 
-    pub fn retrieve_cell_data(&self, name: &str, type_str: &str) -> Result<DataValue, NvmError> {
-        let index = self
-            .names
-            .iter()
-            .position(|n| n == name)
-            .ok_or(NvmError::RetrievalError(
-                "index not found for ".to_string() + name,
-            ))?;
+    // pub fn retrieve_cell_data(&self, name: &str, type_str: &str) -> Result<DataValue, NvmError> {
+    //     let index = self
+    //         .names
+    //         .iter()
+    //         .position(|n| n == name)
+    //         .ok_or(NvmError::RetrievalError(
+    //             "index not found for ".to_string() + name,
+    //         ))?;
 
-        if let Some(debug_values) = &self.debug_values {
-            if let Some(debug) = debug_values.get(index) {
-                if !Self::cell_is_empty(debug) {
-                    return Ok(debug.export_datavalue(type_str)?);
-                }
-            }
-        }
+    //     if let Some(debug_values) = &self.debug_values {
+    //         if let Some(debug) = debug_values.get(index) {
+    //             if !Self::cell_is_empty(debug) {
+    //                 return Ok(debug.export_datavalue(type_str)?);
+    //             }
+    //         }
+    //     }
 
-        if let Some(variant_values) = &self.variant_values {
-            if let Some(variant) = variant_values.get(index) {
-                if !Self::cell_is_empty(variant) {
-                    return Ok(variant.export_datavalue(type_str)?);
-                }
-            }
-        }
+    //     if let Some(variant_values) = &self.variant_values {
+    //         if let Some(variant) = variant_values.get(index) {
+    //             if !Self::cell_is_empty(variant) {
+    //                 return Ok(variant.export_datavalue(type_str)?);
+    //             }
+    //         }
+    //     }
 
-        if let Some(default) = self.default_values.get(index) {
-            if !Self::cell_is_empty(default) {
-                return Ok(default.export_datavalue(type_str)?);
-            }
-        }
+    //     if let Some(default) = self.default_values.get(index) {
+    //         if !Self::cell_is_empty(default) {
+    //             return Ok(default.export_datavalue(type_str)?);
+    //         }
+    //     }
 
-        Err(NvmError::RetrievalError(
-            "data not found for ".to_string() + name,
-        ))
-    }
+    //     Err(NvmError::RetrievalError(
+    //         "data not found for ".to_string() + name,
+    //     ))
+    // }
 
     fn cell_eq_ascii(cell: &Data, target: &str) -> bool {
         match cell {
@@ -142,46 +142,4 @@ impl DataSheet {
     }
 
     // TODO: retrieve sheets by name, data format to be decided
-}
-
-impl ConfigValue for Data {
-    fn as_integer(&self) -> Option<i64> {
-        match self {
-            Data::Int(i) => Some(*i),
-            Data::Float(f) => Some(*f as i64),
-            _ => None,
-        }
-    }
-
-    fn as_float(&self) -> Option<f64> {
-        match self {
-            Data::Float(f) => Some(*f),
-            Data::Int(i) => Some(*i as f64),
-            _ => None,
-        }
-    }
-
-    fn as_string(&self) -> Option<&str> {
-        match self {
-            Data::String(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    fn as_bool(&self) -> Option<bool> {
-        match self {
-            Data::Bool(b) => Some(*b),
-            _ => None,
-        }
-    }
-
-    fn as_size_tuple(&self) -> Result<(i64, i64), NvmError> {
-        Err(NvmError::MiscError(
-            "size tuple not supported for data".to_string(),
-        ))
-    }
-
-    fn as_table(&self) -> Option<&dyn ConfigTable<Value = Self>> {
-        None
-    }
 }

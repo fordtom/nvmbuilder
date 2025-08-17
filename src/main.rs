@@ -7,7 +7,31 @@ mod variants;
 
 use crate::error::*;
 use clap::Parser;
+use std::fs;
 use std::path::Path;
+
+fn load_config(filename: &str) -> Result<types::Config, NvmError> {
+    let text = std::fs::read_to_string(filename)
+        .map_err(|_| NvmError::FileError(format!("failed to open file: {}", filename)))?;
+
+    let ext = Path::new(filename)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+
+    let cfg: types::Config = match ext.as_str() {
+        "toml" => toml::from_str(&text)
+            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?,
+        "yaml" | "yml" => serde_yaml::from_str(&text)
+            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?,
+        "json" => serde_json::from_str(&text)
+            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?,
+        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
+    };
+
+    Ok(cfg)
+}
 
 #[derive(Parser)]
 struct Args {
@@ -25,14 +49,17 @@ fn main() -> Result<(), NvmError> {
     // let args = Args::parse();
 
     let filename = "data/block.toml";
-    let filetype = Path::new(filename).extension().and_then(|s| s.to_str());
+    let block_name = "block";
+    let config: types::Config = load_config(filename)?;
 
-    let flash_block = match filetype {
-        Some("toml") => layout::FlashBlock::<toml::Table>::new(filename, "block")?,
-        // Some("yaml") => layout::FlashBlock::<serde_yaml::Mapping>::new(filename, "block")?,
-        // Some("json") => layout::FlashBlock::<serde_json::Map<String, serde_json::Value>>::new(filename, "block")?,
-        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
-    };
+    println!("Settings: {:?}", config.settings);
+
+    let block = config
+        .blocks
+        .get(block_name)
+        .ok_or(NvmError::BlockNotFound(block_name.to_string()))?;
+
+    println!("Block header: {:?}", block.header);
 
     // Test the DataSheet constructor
     let data_sheet = match variants::DataSheet::new("data/data.xlsx", Some("VarA"), true) {
@@ -46,8 +73,9 @@ fn main() -> Result<(), NvmError> {
         }
     };
 
-    let bytestream = flash_block.build_bytestream(&data_sheet)?;
-    println!("Bytestream: {:?}", bytestream);
+    // Later: build bytestream from config when ready
+    // let bytestream = config.build_bytestream(&data_sheet)?;
+    // println!("Bytestream: {:?}", bytestream);
 
     Ok(())
 }
