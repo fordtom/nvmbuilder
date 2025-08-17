@@ -7,7 +7,6 @@ mod variants;
 
 use crate::error::*;
 use clap::Parser;
-use std::fs;
 use std::path::Path;
 
 fn load_config(filename: &str) -> Result<types::Config, NvmError> {
