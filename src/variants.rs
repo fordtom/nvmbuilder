@@ -93,8 +93,8 @@ impl DataSheet {
     pub fn retrieve_single_value(&self, name: &str) -> Result<DataValue, NvmError> {
         let data = self.retrieve_cell(name)?;
         match data {
-            Data::Int(i) => Ok(DataValue::I64(i)),
-            Data::Float(f) => Ok(DataValue::F64(f)),
+            Data::Int(i) => Ok(DataValue::I64(*i)),
+            Data::Float(f) => Ok(DataValue::F64(*f)),
             _ => Err(NvmError::RetrievalError(
                 "Found non-numeric single value: ".to_string() + name,
             )),
@@ -112,10 +112,10 @@ impl DataSheet {
             ));
         };
 
-        if self.sheets.contains_key(&cell_string) {
+        if self.sheets.contains_key(cell_string) {
             let sheet = self
                 .sheets
-                .get(&cell_string)
+                .get(cell_string)
                 .ok_or(NvmError::RetrievalError(
                     "Sheet not found: ".to_string() + &cell_string,
                 ))?;
@@ -139,14 +139,12 @@ impl DataSheet {
         //     "Found non-numeric 1D array or string: ".to_string() + name,
         // )),
 
-        Ok(ValueSource::Single {
-            value: DataValue::Str(cell_string),
-        })
+        Ok(ValueSource::Single(DataValue::Str(cell_string.to_owned())))
     }
 
     // pub fn retrieve_2d_array(&self, name: &str) -> Result<something, NvmError> {}
 
-    fn retrieve_cell(&self, name: &str) -> Result<Data, NvmError> {
+    fn retrieve_cell(&self, name: &str) -> Result<&Data, NvmError> {
         let index = self
             .names
             .iter()
