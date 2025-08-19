@@ -17,10 +17,10 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) ];
+          overlays = [(import rust-overlay)];
         };
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-          extensions = [ "rust-src" "rustfmt" "clippy" ];
+          extensions = ["rust-src" "rustfmt" "clippy"];
         };
       in {
         devShells.default = pkgs.mkShell {
