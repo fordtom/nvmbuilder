@@ -23,8 +23,7 @@
             echo "Entering dev shell (Rust + Alejandra) from nixpkgs 25.05 — system: ${system}"
           '';
         };
-
-        formatter = pkgs.alejandra;
+        
       }
     );
 }
