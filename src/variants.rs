@@ -90,41 +90,97 @@ impl DataSheet {
         })
     }
 
-    // pub fn retrieve_cell_data(&self, name: &str, type_str: &str) -> Result<DataValue, NvmError> {
-    //     let index = self
-    //         .names
-    //         .iter()
-    //         .position(|n| n == name)
-    //         .ok_or(NvmError::RetrievalError(
-    //             "index not found for ".to_string() + name,
-    //         ))?;
+    pub fn retrieve_single_value(&self, name: &str) -> Result<DataValue, NvmError> {
+        let data = self.retrieve_cell(name)?;
+        match data {
+            Data::Int(i) => Ok(DataValue::I64(i)),
+            Data::Float(f) => Ok(DataValue::F64(f)),
+            _ => Err(NvmError::RetrievalError(
+                "Found non-numeric single value: ".to_string() + name,
+            )),
+        }
+    }
 
-    //     if let Some(debug_values) = &self.debug_values {
-    //         if let Some(debug) = debug_values.get(index) {
-    //             if !Self::cell_is_empty(debug) {
-    //                 return Ok(debug.export_datavalue(type_str)?);
-    //             }
-    //         }
-    //     }
+    pub fn retrieve_1d_array_or_string(&self, name: &str) -> Result<ValueSource, NvmError> {
+        let data = self.retrieve_cell(name)?;
 
-    //     if let Some(variant_values) = &self.variant_values {
-    //         if let Some(variant) = variant_values.get(index) {
-    //             if !Self::cell_is_empty(variant) {
-    //                 return Ok(variant.export_datavalue(type_str)?);
-    //             }
-    //         }
-    //     }
+        let cell_string = if let Data::String(s) = data {
+            s
+        } else {
+            return Err(NvmError::RetrievalError(
+                "Expected string value for 1D array or string: ".to_string() + name,
+            ));
+        };
 
-    //     if let Some(default) = self.default_values.get(index) {
-    //         if !Self::cell_is_empty(default) {
-    //             return Ok(default.export_datavalue(type_str)?);
-    //         }
-    //     }
+        if self.sheets.contains_key(&cell_string) {
+            let sheet = self
+                .sheets
+                .get(&cell_string)
+                .ok_or(NvmError::RetrievalError(
+                    "Sheet not found: ".to_string() + &cell_string,
+                ))?;
+        }
 
-    //     Err(NvmError::RetrievalError(
-    //         "data not found for ".to_string() + name,
-    //     ))
-    // }
+        // let mut values = Vec::with_capacity(arr.len());
+        // for cell in arr {
+        //     match cell {
+        //         Data::Int(i) => values.push(DataValue::I64(i)),
+        //         Data::Float(f) => values.push(DataValue::F64(f)),
+        //         _ => {
+        //             return Err(NvmError::RetrievalError(
+        //                 "Found non-numeric value in 1D array: ".to_string() + name,
+        //             ))
+        //         }
+        //     }
+        // }
+        // Ok(ValueSource::Array { value: values })
+        // }
+        // _ => Err(NvmError::RetrievalError(
+        //     "Found non-numeric 1D array or string: ".to_string() + name,
+        // )),
+
+        Ok(ValueSource::Single {
+            value: DataValue::Str(cell_string),
+        })
+    }
+
+    // pub fn retrieve_2d_array(&self, name: &str) -> Result<something, NvmError> {}
+
+    fn retrieve_cell(&self, name: &str) -> Result<Data, NvmError> {
+        let index = self
+            .names
+            .iter()
+            .position(|n| n == name)
+            .ok_or(NvmError::RetrievalError(
+                "index not found for ".to_string() + name,
+            ))?;
+
+        if let Some(debug_values) = &self.debug_values {
+            if let Some(debug) = debug_values.get(index) {
+                if !Self::cell_is_empty(debug) {
+                    return Ok(debug);
+                }
+            }
+        }
+
+        if let Some(variant_values) = &self.variant_values {
+            if let Some(variant) = variant_values.get(index) {
+                if !Self::cell_is_empty(variant) {
+                    return Ok(variant);
+                }
+            }
+        }
+
+        if let Some(default) = self.default_values.get(index) {
+            if !Self::cell_is_empty(default) {
+                return Ok(default);
+            }
+        }
+
+        Err(NvmError::RetrievalError(
+            "data not found for ".to_string() + name,
+        ))
+    }
 
     fn cell_eq_ascii(cell: &Data, target: &str) -> bool {
         match cell {
