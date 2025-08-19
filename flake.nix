@@ -1,5 +1,5 @@
 {
-  description = "Dev shell with Rust toolchain and Alejandra, pinned to nixpkgs 25.05 stable";
+  description = "Dev shell with Rust toolchain, pinned to nixpkgs 25.05 stable";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
@@ -21,14 +21,11 @@
             cargo
             rustfmt
             clippy
-            alejandra
           ];
           shellHook = ''
-            echo "Entering dev shell (Rust + Alejandra) from nixpkgs 25.05 — system: ${system}"
+            echo "Entering dev shell (Rust) from nixpkgs 25.05 — system: ${system}"
           '';
         };
-
-        formatter = pkgs.alejandra;
       }
     );
 }
