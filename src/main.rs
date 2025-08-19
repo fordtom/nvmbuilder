@@ -20,12 +20,15 @@ fn load_config(filename: &str) -> Result<types::Config, NvmError> {
         .unwrap_or_default();
 
     let cfg: types::Config = match ext.as_str() {
-        "toml" => toml::from_str(&text)
-            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?,
-        "yaml" | "yml" => serde_yaml::from_str(&text)
-            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?,
-        "json" => serde_json::from_str(&text)
-            .map_err(|_| NvmError::FileError("failed to parse file: ".to_string() + filename))?,
+        "toml" => toml::from_str(&text).map_err(|e| {
+            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+        })?,
+        "yaml" | "yml" => serde_yaml::from_str(&text).map_err(|e| {
+            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+        })?,
+        "json" => serde_json::from_str(&text).map_err(|e| {
+            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+        })?,
         _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
     };
 

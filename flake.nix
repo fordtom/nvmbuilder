@@ -1,6 +1,4 @@
 {
-  description = "Dev shell with Rust toolchain, pinned to nixpkgs 25.05 stable";
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
@@ -28,9 +26,6 @@
             rustToolchain
             rust-analyzer
           ];
-          shellHook = ''
-            echo "Entering dev shell (Rust via rust-overlay) from nixpkgs 25.05 — system: ${system}"
-          '';
         };
       }
     );

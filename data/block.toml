@@ -1,6 +1,6 @@
 [settings]
-# padding = 0xFF        # to get rid of?
 endianness = "little"
+# padding = 0xFF        # to get rid of?
 
 [settings.crc]
 polynomial = 0x04C11DB7
