@@ -20,3 +20,4 @@ some.struct.value = { value = 0x1234, type = "u32" }
 some.struct.value2 = { name = "Value 2", type = "u32" }
 
 another.struct.value = { name = "Array", type = "u16", size = [10, 2] }
+another.struct.arr = { value = [2, 2], type = "u16", size = 2 }
