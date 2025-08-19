@@ -7,10 +7,6 @@ use crate::variants::DataSheet;
 //         let mut buffer = Vec::with_capacity(self.block.header.length as usize);
 //         let mut offset = 0;
 
-//         // set padding to block.header.padding if present, else fallback to settings.padding
-//         let padding = self.block.header.padding.unwrap_or(self.settings.padding);
-//         let padding = DataValue::U8(padding);
-
 //         Self::build_bytestream_inner(
 //             &self.block.data,
 //             data_sheet,
@@ -28,7 +24,7 @@ use crate::variants::DataSheet;
 //         buffer: &mut Vec<u8>,
 //         offset: &mut usize,
 //         endianness: &Endianness,
-//         padding: &DataValue,
+//         padding: &u8,
 //     ) -> Result<(), NvmError> {
 //         for (_, v) in table.iter() {
 //             match v.classify_entry() {
