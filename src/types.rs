@@ -124,6 +124,15 @@ impl DataValue {
             ScalarType::F64 => Ok(f64::try_from(self)?.to_endian_bytes(endianness)),
         }
     }
+
+    pub fn string_to_bytes(&self) -> Result<Vec<u8>, NvmError> {
+        match self {
+            DataValue::Str(val) => Ok(val.as_bytes().to_vec()),
+            _ => Err(NvmError::DataValueExportFailed(
+                "String expected for string type.".to_string(),
+            )),
+        }
+    }
 }
 
 /// Value source struct - necessary for making name/value mutually exclusive.
@@ -136,7 +145,6 @@ pub enum ValueSource {
 
 /// Mutually exclusive source enum.
 #[derive(Debug, Deserialize)]
-// #[serde(untagged)]
 pub enum EntrySource {
     #[serde(rename = "name")]
     Name(String),
@@ -173,35 +181,31 @@ pub enum Entry {
 }
 
 impl LeafEntry {
-    // pass ref to vec to avoid copying
-    // pub fn emit_bytes(&self, data_sheet: &DataSheet, endianness: &Endianness) -> Vec<u8> {
-    //     let value = self.get_value(data_sheet)?;
-
-    //     // as examples for byte export
-    //     // (DataValue::F64(val), Endianness::Little) => val.to_le_bytes().to_vec(),
-    //     // (DataValue::F64(val), Endianness::Big) => val.to_be_bytes().to_vec(),
-    // }
-
-    // fn get_value(&self, data_sheet: &DataSheet) -> Result<DataValue, NvmError> {
-    //     match self.source {
-    //         EntrySource::Value(value) => Ok(value.value),
-    //         EntrySource::Name(name) => data_sheet.retrieve_cell_data(&name, &self.scalar_type),
-    //     }
-    // }
+    /// Returns the alignment of the leaf entry.
+    pub fn get_alignment(&self) -> usize {
+        self.scalar_type.size_bytes()
+    }
 
     pub fn emit_bytes(
         &self,
         data_sheet: &DataSheet,
         endianness: &Endianness,
+        padding: u8,
     ) -> Result<Vec<u8>, NvmError> {
         match self.size {
             None => self.emit_bytes_single(data_sheet, endianness),
-            // Some(SizeSource::OneD(size)) => {
-            //     let value = match self.source {
-            //         EntrySource::Value(value) => value.value,
-            //         EntrySource::Name(name) => data_sheet.retrieve_1d_array_or_string(&name)?,
-            //     };
-            // }
+            Some(SizeSource::OneD(size)) => {
+                let mut bytes = self.emit_bytes_1d(data_sheet, endianness)?;
+                if bytes.len() > (size * self.scalar_type.size_bytes()) {
+                    return Err(NvmError::DataValueExportFailed(
+                        "Array/string is larger than defined size.".to_string(),
+                    ));
+                }
+                while bytes.len() < (size * self.scalar_type.size_bytes()) {
+                    bytes.push(padding);
+                }
+                Ok(bytes)
+            }
             // Some(SizeSource::TwoD(size)) => {}
             _ => {
                 return Err(NvmError::DataValueExportFailed(
@@ -221,20 +225,34 @@ impl LeafEntry {
                 let value = data_sheet.retrieve_single_value(name)?;
                 value.to_bytes(self.scalar_type, endianness)
             }
-            EntrySource::Value(value) => match value {
-                ValueSource::Single(value) => value.to_bytes(self.scalar_type, endianness),
-                _ => {
-                    return Err(NvmError::DataValueExportFailed(
-                        "Single value expected for scalar type.".to_string(),
-                    ))
-                }
-            },
+            EntrySource::Value(ValueSource::Single(v)) => v.to_bytes(self.scalar_type, endianness),
+            EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
+                "Single value expected for scalar type.".to_string(),
+            )),
         }
     }
 
-    /// Returns the alignment of the leaf entry.
-    pub fn get_alignment(&self) -> usize {
-        self.scalar_type.size_bytes()
+    fn emit_bytes_1d(
+        &self,
+        data_sheet: &DataSheet,
+        endianness: &Endianness,
+    ) -> Result<Vec<u8>, NvmError> {
+        match &self.source {
+            EntrySource::Name(name) => match data_sheet.retrieve_1d_array_or_string(name)? {
+                ValueSource::Single(v) => v.string_to_bytes(),
+                ValueSource::Array(v) => v.iter().try_fold(Vec::new(), |mut acc, v| {
+                    acc.extend(v.to_bytes(self.scalar_type, endianness)?);
+                    Ok(acc)
+                }),
+            },
+            EntrySource::Value(ValueSource::Array(v)) => {
+                v.iter().try_fold(Vec::new(), |mut acc, v| {
+                    acc.extend(v.to_bytes(self.scalar_type, endianness)?);
+                    Ok(acc)
+                })
+            }
+            EntrySource::Value(ValueSource::Single(v)) => v.string_to_bytes(),
+        }
     }
 }
 

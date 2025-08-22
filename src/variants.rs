@@ -104,41 +104,38 @@ impl DataSheet {
     pub fn retrieve_1d_array_or_string(&self, name: &str) -> Result<ValueSource, NvmError> {
         let data = self.retrieve_cell(name)?;
 
-        let cell_string = if let Data::String(s) = data {
-            s
-        } else {
+        let Data::String(cell_string) = data else {
             return Err(NvmError::RetrievalError(
                 "Expected string value for 1D array or string: ".to_string() + name,
             ));
         };
 
-        if self.sheets.contains_key(cell_string) {
-            let sheet = self
-                .sheets
-                .get(cell_string)
-                .ok_or(NvmError::RetrievalError(
-                    "Sheet not found: ".to_string() + &cell_string,
-                ))?;
+        // If we find a sheet, we assume it's a 1D array
+        if let Some(sheet) = self.sheets.get(cell_string) {
+            let mut out = Vec::new();
+
+            for row in sheet.rows().skip(1) {
+                match row.get(0) {
+                    Some(cell) if !Self::cell_is_empty(cell) => {
+                        let v = match cell {
+                            Data::Int(i) => DataValue::I64(*i),
+                            Data::Float(f) => DataValue::F64(*f),
+                            Data::String(s) => DataValue::Str(s.to_owned()),
+                            _ => {
+                                return Err(NvmError::RetrievalError(
+                                    "Unsupported data type in 1D array: ".to_string() + name,
+                                ));
+                            }
+                        };
+                        out.push(v);
+                    }
+                    _ => break,
+                }
+            }
+            return Ok(ValueSource::Array(out));
         }
 
-        // let mut values = Vec::with_capacity(arr.len());
-        // for cell in arr {
-        //     match cell {
-        //         Data::Int(i) => values.push(DataValue::I64(i)),
-        //         Data::Float(f) => values.push(DataValue::F64(f)),
-        //         _ => {
-        //             return Err(NvmError::RetrievalError(
-        //                 "Found non-numeric value in 1D array: ".to_string() + name,
-        //             ))
-        //         }
-        //     }
-        // }
-        // Ok(ValueSource::Array { value: values })
-        // }
-        // _ => Err(NvmError::RetrievalError(
-        //     "Found non-numeric 1D array or string: ".to_string() + name,
-        // )),
-
+        // We don't find a sheet, so we assume it's a string
         Ok(ValueSource::Single(DataValue::Str(cell_string.to_owned())))
     }
 
