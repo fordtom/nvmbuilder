@@ -2,7 +2,7 @@ use calamine::{open_workbook, Data, Range, Reader, Xlsx};
 use std::collections::HashMap;
 
 use crate::error::*;
-use crate::types::*;
+use crate::schema::*;
 
 pub struct DataSheet {
     names: Vec<String>,

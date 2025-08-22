@@ -1,15 +1,16 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 
+mod emit;
 mod error;
 mod layout;
-mod types;
+mod schema;
 mod variants;
 
 use crate::error::*;
 use clap::Parser;
 use std::path::Path;
 
-fn load_config(filename: &str) -> Result<types::Config, NvmError> {
+fn load_config(filename: &str) -> Result<schema::Config, NvmError> {
     let text = std::fs::read_to_string(filename)
         .map_err(|_| NvmError::FileError(format!("failed to open file: {}", filename)))?;
 
@@ -19,7 +20,7 @@ fn load_config(filename: &str) -> Result<types::Config, NvmError> {
         .map(|s| s.to_ascii_lowercase())
         .unwrap_or_default();
 
-    let cfg: types::Config = match ext.as_str() {
+    let cfg: schema::Config = match ext.as_str() {
         "toml" => toml::from_str(&text).map_err(|e| {
             NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
         })?,
@@ -52,7 +53,7 @@ fn main() -> Result<(), NvmError> {
 
     let filename = "data/block.toml";
     let block_name = "block";
-    let config: types::Config = load_config(filename)?;
+    let config: schema::Config = load_config(filename)?;
 
     println!("Settings: {:?}", config.settings);
 
