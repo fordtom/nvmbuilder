@@ -1,6 +1,5 @@
 {
     "settings": {
-        "padding": 255,
         "endianness": "little",
         "crc": {
             "polynomial": 79764919,

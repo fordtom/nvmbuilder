@@ -14,8 +14,6 @@ pub struct Config {
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub endianness: Endianness,
-    #[serde(default = "default_padding")]
-    pub padding: u8,
     pub crc: CrcData,
 }
 
@@ -25,11 +23,6 @@ pub struct Settings {
 pub enum Endianness {
     Little,
     Big,
-}
-
-/// Function to provide a default padding value.
-fn default_padding() -> u8 {
-    0xFF
 }
 
 /// CRC settings.
@@ -54,7 +47,13 @@ pub struct Header {
     pub start_address: u32,
     pub length: u32,
     pub crc_location: u32,
-    pub padding: Option<u8>,
+    #[serde(default = "default_padding")]
+    pub padding: u8,
+}
+
+/// Function to provide a default padding value.
+fn default_padding() -> u8 {
+    0xFF
 }
 
 /// Any entry - should always be either a leaf or a branch (more entries).

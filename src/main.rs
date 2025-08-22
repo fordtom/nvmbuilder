@@ -76,9 +76,8 @@ fn main() -> Result<(), NvmError> {
         }
     };
 
-    // Later: build bytestream from config when ready
-    // let bytestream = config.build_bytestream(&data_sheet)?;
-    // println!("Bytestream: {:?}", bytestream);
+    let bytestream = block.build_bytestream(&data_sheet, &config.settings)?;
+    println!("Bytestream: {:?}", bytestream);
 
     Ok(())
 }

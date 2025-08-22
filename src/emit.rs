@@ -12,7 +12,7 @@ impl LeafEntry {
         &self,
         data_sheet: &DataSheet,
         endianness: &Endianness,
-        padding: u8,
+        padding: &u8,
     ) -> Result<Vec<u8>, NvmError> {
         match self.size {
             None => self.emit_bytes_single(data_sheet, endianness),
@@ -49,7 +49,7 @@ impl LeafEntry {
         data_sheet: &DataSheet,
         endianness: &Endianness,
         size: usize,
-        padding: u8,
+        padding: &u8,
     ) -> Result<Vec<u8>, NvmError> {
         let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
 
@@ -80,7 +80,7 @@ impl LeafEntry {
             ));
         }
         while out.len() < (size * self.scalar_type.size_bytes()) {
-            out.push(padding);
+            out.push(*padding);
         }
         Ok(out)
     }
@@ -90,7 +90,7 @@ impl LeafEntry {
         data_sheet: &DataSheet,
         endianness: &Endianness,
         size: [usize; 2],
-        padding: u8,
+        padding: &u8,
     ) -> Result<Vec<u8>, NvmError> {
         match &self.source {
             EntrySource::Name(name) => {
@@ -121,7 +121,7 @@ impl LeafEntry {
                 }
 
                 while out.len() < total_bytes {
-                    out.push(padding);
+                    out.push(*padding);
                 }
 
                 Ok(out)
