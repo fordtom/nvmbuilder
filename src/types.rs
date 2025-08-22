@@ -195,22 +195,12 @@ impl LeafEntry {
         match self.size {
             None => self.emit_bytes_single(data_sheet, endianness),
             Some(SizeSource::OneD(size)) => {
-                let mut bytes = self.emit_bytes_1d(data_sheet, endianness)?;
-                if bytes.len() > (size * self.scalar_type.size_bytes()) {
-                    return Err(NvmError::DataValueExportFailed(
-                        "Array/string is larger than defined size.".to_string(),
-                    ));
-                }
-                while bytes.len() < (size * self.scalar_type.size_bytes()) {
-                    bytes.push(padding);
-                }
+                let bytes = self.emit_bytes_1d(data_sheet, endianness, size, padding)?;
                 Ok(bytes)
             }
-            // Some(SizeSource::TwoD(size)) => {}
-            _ => {
-                return Err(NvmError::DataValueExportFailed(
-                    "2D arrays are not supported yet.".to_string(),
-                ));
+            Some(SizeSource::TwoD(size)) => {
+                let bytes = self.emit_bytes_2d(data_sheet, endianness, size, padding)?;
+                Ok(bytes)
             }
         }
     }
@@ -236,22 +226,89 @@ impl LeafEntry {
         &self,
         data_sheet: &DataSheet,
         endianness: &Endianness,
+        size: usize,
+        padding: u8,
     ) -> Result<Vec<u8>, NvmError> {
+        let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
+
         match &self.source {
             EntrySource::Name(name) => match data_sheet.retrieve_1d_array_or_string(name)? {
-                ValueSource::Single(v) => v.string_to_bytes(),
-                ValueSource::Array(v) => v.iter().try_fold(Vec::new(), |mut acc, v| {
-                    acc.extend(v.to_bytes(self.scalar_type, endianness)?);
-                    Ok(acc)
-                }),
+                ValueSource::Single(v) => {
+                    out.extend(v.string_to_bytes()?);
+                }
+                ValueSource::Array(v) => {
+                    for v in v {
+                        out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                    }
+                }
             },
             EntrySource::Value(ValueSource::Array(v)) => {
-                v.iter().try_fold(Vec::new(), |mut acc, v| {
-                    acc.extend(v.to_bytes(self.scalar_type, endianness)?);
-                    Ok(acc)
-                })
+                for v in v {
+                    out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                }
             }
-            EntrySource::Value(ValueSource::Single(v)) => v.string_to_bytes(),
+            EntrySource::Value(ValueSource::Single(v)) => {
+                out.extend(v.string_to_bytes()?);
+            }
+        }
+
+        if out.len() > (size * self.scalar_type.size_bytes()) {
+            return Err(NvmError::DataValueExportFailed(
+                "Array/string is larger than defined size.".to_string(),
+            ));
+        }
+        while out.len() < (size * self.scalar_type.size_bytes()) {
+            out.push(padding);
+        }
+        Ok(out)
+    }
+
+    fn emit_bytes_2d(
+        &self,
+        data_sheet: &DataSheet,
+        endianness: &Endianness,
+        size: [usize; 2],
+        padding: u8,
+    ) -> Result<Vec<u8>, NvmError> {
+        match &self.source {
+            EntrySource::Name(name) => {
+                let data = data_sheet.retrieve_2d_array(name)?;
+
+                let rows = size[0];
+                let cols = size[1];
+
+                let total_bytes = rows * cols * self.scalar_type.size_bytes();
+
+                if data.iter().any(|row| row.len() != cols) {
+                    return Err(NvmError::DataValueExportFailed(
+                        "2D array column count mismatch.".to_string(),
+                    ));
+                }
+
+                if data.len() > rows {
+                    return Err(NvmError::DataValueExportFailed(
+                        "2D array row count greater than defined size.".to_string(),
+                    ));
+                }
+
+                let mut out = Vec::with_capacity(total_bytes);
+                for row in data {
+                    for v in row {
+                        out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                    }
+                }
+
+                while out.len() < total_bytes {
+                    out.push(padding);
+                }
+
+                Ok(out)
+            }
+            EntrySource::Value(_) => {
+                return Err(NvmError::DataValueExportFailed(
+                    "2D arrays within the layout file are not supported.".to_string(),
+                ));
+            }
         }
     }
 }

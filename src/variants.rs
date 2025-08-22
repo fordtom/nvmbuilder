@@ -91,8 +91,7 @@ impl DataSheet {
     }
 
     pub fn retrieve_single_value(&self, name: &str) -> Result<DataValue, NvmError> {
-        let data = self.retrieve_cell(name)?;
-        match data {
+        match self.retrieve_cell(name)? {
             Data::Int(i) => Ok(DataValue::I64(*i)),
             Data::Float(f) => Ok(DataValue::F64(*f)),
             _ => Err(NvmError::RetrievalError(
@@ -102,9 +101,7 @@ impl DataSheet {
     }
 
     pub fn retrieve_1d_array_or_string(&self, name: &str) -> Result<ValueSource, NvmError> {
-        let data = self.retrieve_cell(name)?;
-
-        let Data::String(cell_string) = data else {
+        let Data::String(cell_string) = self.retrieve_cell(name)? else {
             return Err(NvmError::RetrievalError(
                 "Expected string value for 1D array or string: ".to_string() + name,
             ));
@@ -139,7 +136,60 @@ impl DataSheet {
         Ok(ValueSource::Single(DataValue::Str(cell_string.to_owned())))
     }
 
-    // pub fn retrieve_2d_array(&self, name: &str) -> Result<something, NvmError> {}
+    pub fn retrieve_2d_array(&self, name: &str) -> Result<Vec<Vec<DataValue>>, NvmError> {
+        let Data::String(cell_string) = self.retrieve_cell(name)? else {
+            return Err(NvmError::RetrievalError(
+                "Expected string value for 2D array: ".to_string() + name,
+            ));
+        };
+
+        let sheet = self.sheets.get(cell_string).ok_or_else(|| {
+            NvmError::RetrievalError("Sheet not found: ".to_string() + &cell_string)
+        })?;
+
+        let convert = |cell: &Data| -> Result<DataValue, NvmError> {
+            match cell {
+                Data::Int(i) => Ok(DataValue::I64(*i)),
+                Data::Float(f) => Ok(DataValue::F64(*f)),
+                _ => Err(NvmError::RetrievalError(
+                    "Unsupported data type in 2D array: ".to_string() + name,
+                )),
+            }
+        };
+
+        let mut rows = sheet.rows();
+        let hdrs = rows.next().ok_or_else(|| {
+            NvmError::RetrievalError("No headers found in 2D array: ".to_string() + name)
+        })?;
+        let width = hdrs.iter().take_while(|c| !Self::cell_is_empty(c)).count();
+        if width == 0 {
+            return Err(NvmError::RetrievalError(
+                "Detected zero width 2D array: ".to_string() + name,
+            ));
+        }
+
+        let mut out = Vec::new();
+
+        'outer: for row in rows {
+            if row.get(0).map_or(true, |c| Self::cell_is_empty(c)) {
+                break;
+            }
+
+            let mut vals = Vec::with_capacity(width);
+            for col in 0..width {
+                let Some(cell) = row.get(col) else {
+                    break 'outer;
+                };
+                if Self::cell_is_empty(cell) {
+                    break 'outer;
+                };
+                vals.push(convert(cell)?);
+            }
+            out.push(vals);
+        }
+
+        Ok(out)
+    }
 
     fn retrieve_cell(&self, name: &str) -> Result<&Data, NvmError> {
         let index = self
