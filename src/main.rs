@@ -76,8 +76,12 @@ fn main() -> Result<(), NvmError> {
         }
     };
 
-    let bytestream = block.build_bytestream(&data_sheet, &config.settings)?;
+    let mut bytestream = block.build_bytestream(&data_sheet, &config.settings)?;
     println!("Bytestream: {:?}", bytestream);
+
+    let hex_string =
+        hex::bytestream_to_hex_string(&mut bytestream, &block.header, &config.settings)?;
+    println!("Hex string:\n{}", hex_string);
 
     Ok(())
 }
