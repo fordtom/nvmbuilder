@@ -32,6 +32,12 @@ impl Block {
     ) -> Result<(), NvmError> {
         match table {
             Entry::Leaf(leaf) => {
+                let alignment = leaf.get_alignment();
+                while *offset % alignment != 0 {
+                    buffer.push(*padding);
+                    *offset += 1;
+                }
+
                 let bytes = leaf.emit_bytes(data_sheet, endianness, padding)?;
                 *offset += bytes.len();
                 buffer.extend(bytes);

@@ -205,7 +205,7 @@ macro_rules! impl_try_from_data_value {
                     DataValue::U64(val) => Ok(*val as $t),
                     DataValue::I64(val) => Ok(*val as $t),
                     DataValue::F64(val) => Ok(*val as $t),
-                    DataValue::Str(val) => {
+                    DataValue::Str(_) => {
                         return Err(NvmError::DataValueExportFailed(
                             "Cannot convert string to scalar type.".to_string(),
                         ));
