@@ -5,7 +5,7 @@ Build flash blocks from a layout file (TOML/YAML/JSON) and an Excel workbook, th
 ### Usage
 
 ```bash
-nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> [-v <VARIANT>] [-d] [-o <DIR>]
+nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> [-v <VARIANT>] [-d] [-o <DIR>] [--offset <OFFSET>]
 ```
 
 - **BLOCK**: one or more block names to build (positional)
@@ -14,6 +14,7 @@ nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> [-v <VARIANT>] [-d] [-o <DIR>]
 - **-v, --variant NAME**: column in the workbook to use for variants (optional)
 - **-d, --debug**: prefer the Debug column when present (optional)
 - **-o, --out DIR**: output directory for `.hex` files (default: `out`)
+- **--offset OFFSET**: Optional u32 virtual address offset (hex or dec)
 
 The order of preference for value selection is debug -> variant -> default. Ensure you always have default filled. Strings in the excel can point to different sheets as a way of providing arrays.
 
@@ -29,7 +30,7 @@ nvmbuilder block -l examples/block.toml -x examples/data.xlsx -o out
 nvmbuilder blockA blockB -l examples/block.toml -x examples/data.xlsx -v VarA -d -o out
 
 # Using YAML or JSON layouts
-nvmbuilder block -l examples/block.yaml -x examples/data.xlsx -o out
+nvmbuilder block -l examples/block.yaml -x examples/data.xlsx -o out --offset 0x10000
 nvmbuilder block -l examples/block.json -x examples/data.xlsx -o out
 ```
 

@@ -14,6 +14,18 @@ use hex::bytestream_to_hex_string;
 use layout::load_layout;
 use variants::DataSheet;
 
+fn parse_offset(offset: &str) -> Result<u32, NvmError> {
+    let s = offset.trim();
+    let (radix, digits) = if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        (16, hex)
+    } else {
+        (10, s)
+    };
+
+    u32::from_str_radix(&digits.replace("_", ""), radix)
+        .map_err(|_| NvmError::MiscError(format!("invalid offset provided: {}", offset)))
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Build flash blocks from layout + Excel data")]
 pub struct Args {
@@ -53,12 +65,22 @@ pub struct Args {
         help = "Output directory for .hex files"
     )]
     pub out: String,
+
+    #[arg(
+        long,
+        value_name = "OFFSET",
+        default_value_t = 0u32,
+        value_parser = parse_offset,
+        help = "Optional virtual address offset (hex or dec)"
+    )]
+    pub offset: u32,
 }
 
 fn build_block(
     layout: &Config,
     data_sheet: &DataSheet,
     block_name: &str,
+    offset: u32,
     out: &str,
 ) -> Result<(), NvmError> {
     let block = layout
@@ -68,7 +90,8 @@ fn build_block(
 
     let mut bytestream = block.build_bytestream(&data_sheet, &layout.settings)?;
 
-    let hex_string = bytestream_to_hex_string(&mut bytestream, &block.header, &layout.settings)?;
+    let hex_string =
+        bytestream_to_hex_string(&mut bytestream, &block.header, &layout.settings, offset)?;
 
     let out_path = Path::new(out).join(format!("{}.hex", block_name));
     std::fs::write(out_path, hex_string)
@@ -86,9 +109,9 @@ fn main() -> Result<(), NvmError> {
     std::fs::create_dir_all(&args.out)
         .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
 
-    args.blocks
-        .par_iter()
-        .try_for_each(|block_name| build_block(&layout, &data_sheet, block_name, &args.out))?;
+    args.blocks.par_iter().try_for_each(|block_name| {
+        build_block(&layout, &data_sheet, block_name, args.offset, &args.out)
+    })?;
 
     Ok(())
 }
