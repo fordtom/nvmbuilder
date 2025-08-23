@@ -4,82 +4,91 @@ mod layout;
 mod schema;
 mod variants;
 
-use crate::error::*;
 use clap::Parser;
+use rayon::prelude::*;
 use std::path::Path;
 
-fn load_config(filename: &str) -> Result<schema::Config, NvmError> {
-    let text = std::fs::read_to_string(filename)
-        .map_err(|_| NvmError::FileError(format!("failed to open file: {}", filename)))?;
+use crate::error::*;
+use crate::schema::*;
+use hex::bytestream_to_hex_string;
+use layout::load_layout;
+use variants::DataSheet;
 
-    let ext = Path::new(filename)
-        .extension()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_ascii_lowercase())
-        .unwrap_or_default();
+#[derive(Parser, Debug)]
+#[command(author, version, about = "Build flash blocks from layout + Excel data")]
+pub struct Args {
+    // Positional: at least one block name
+    #[arg(value_name = "BLOCK", num_args = 1.., help = "Block name(s) to build")]
+    pub blocks: Vec<String>,
 
-    let cfg: schema::Config = match ext.as_str() {
-        "toml" => toml::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
-        })?,
-        "yaml" | "yml" => serde_yaml::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
-        })?,
-        "json" => serde_json::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
-        })?,
-        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
-    };
-
-    Ok(cfg)
-}
-
-#[derive(Parser)]
-struct Args {
     #[arg(
-        short,
+        short = 'l',
         long,
-        default_value = "config.toml",
-        help = "Path to the config file (optional)",
-        value_name = "FILE"
+        required = true,
+        value_name = "FILE",
+        help = "Path to the layout file (TOML/YAML/JSON)"
     )]
-    config: String,
+    pub layout: String,
+
+    #[arg(
+        short = 'x',
+        long,
+        required = true,
+        value_name = "FILE",
+        help = "Path to the Excel variants file"
+    )]
+    pub xlsx: String,
+
+    #[arg(short = 'v', long, value_name = "NAME", help = "Variant column to use")]
+    pub variant: Option<String>,
+
+    #[arg(short = 'd', long, help = "Use the Debug column when present")]
+    pub debug: bool,
+
+    #[arg(
+        short = 'o',
+        long,
+        value_name = "DIR",
+        default_value = "out",
+        help = "Output directory for .hex files"
+    )]
+    pub out: String,
 }
 
-fn main() -> Result<(), NvmError> {
-    // let args = Args::parse();
-
-    let filename = "data/block.toml";
-    let block_name = "block";
-    let config: schema::Config = load_config(filename)?;
-
-    println!("Settings: {:?}", config.settings);
-
-    let block = config
+fn build_block(
+    layout: &Config,
+    data_sheet: &DataSheet,
+    block_name: &str,
+    out: &str,
+) -> Result<(), NvmError> {
+    let block = layout
         .blocks
         .get(block_name)
         .ok_or(NvmError::BlockNotFound(block_name.to_string()))?;
 
-    println!("Block header: {:?}", block.header);
+    let mut bytestream = block.build_bytestream(&data_sheet, &layout.settings)?;
 
-    // Test the DataSheet constructor
-    let data_sheet = match variants::DataSheet::new("data/data.xlsx", None, false) {
-        Ok(data_sheet) => {
-            println!("✅ Successfully loaded DataSheet!");
-            data_sheet
-        }
-        Err(e) => {
-            println!("❌ Failed to load DataSheet: {:?}", e);
-            return Err(e.into());
-        }
-    };
+    let hex_string = bytestream_to_hex_string(&mut bytestream, &block.header, &layout.settings)?;
 
-    let mut bytestream = block.build_bytestream(&data_sheet, &config.settings)?;
-    println!("Bytestream: {:?}", bytestream);
+    let out_path = Path::new(out).join(format!("{}.hex", block_name));
+    std::fs::write(out_path, hex_string)
+        .map_err(|e| NvmError::FileError(format!("failed to write block {}: {}", block_name, e)))?;
 
-    let hex_string =
-        hex::bytestream_to_hex_string(&mut bytestream, &block.header, &config.settings)?;
-    println!("Hex string:\n{}", hex_string);
+    Ok(())
+}
+
+fn main() -> Result<(), NvmError> {
+    let args = Args::parse();
+
+    let layout = load_layout(&args.layout)?;
+    let data_sheet = DataSheet::new(&args.xlsx, args.variant, args.debug)?;
+
+    std::fs::create_dir_all(&args.out)
+        .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
+
+    args.blocks
+        .par_iter()
+        .try_for_each(|block_name| build_block(&layout, &data_sheet, block_name, &args.out))?;
 
     Ok(())
 }

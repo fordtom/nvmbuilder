@@ -1,6 +1,7 @@
 use crate::error::*;
 use crate::schema::*;
 use crate::variants::DataSheet;
+use std::path::Path;
 
 impl LeafEntry {
     /// Returns the alignment of the leaf entry.
@@ -195,4 +196,30 @@ impl Block {
         }
         Ok(())
     }
+}
+
+pub fn load_layout(filename: &str) -> Result<Config, NvmError> {
+    let text = std::fs::read_to_string(filename)
+        .map_err(|_| NvmError::FileError(format!("failed to open file: {}", filename)))?;
+
+    let ext = Path::new(filename)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+
+    let cfg: Config = match ext.as_str() {
+        "toml" => toml::from_str(&text).map_err(|e| {
+            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+        })?,
+        "yaml" | "yml" => serde_yaml::from_str(&text).map_err(|e| {
+            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+        })?,
+        "json" => serde_json::from_str(&text).map_err(|e| {
+            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+        })?,
+        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
+    };
+
+    Ok(cfg)
 }
