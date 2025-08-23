@@ -7,25 +7,6 @@ start = 0xFFFFFFFF
 xor_out = 0xFFFFFFFF
 reverse = true
 
-# Fill the following names in the Excel "Main" sheet:
-# - Value 2 (numeric)
-# - DeviceName (string literal)
-# - SerialNumber (numeric)
-# - FWVersionMajor, FWVersionMinor, FWVersionPatch (numeric)
-# - WiFiSSID (string literal)
-# - WiFiKey (string literal)
-# - Coefficients1D (sheet name for 1D numeric array)
-# - CalibrationMatrix (sheet name for 2D numeric array)
-# - Block2Description (string literal)
-# - Array (sheet name for 2D numeric array)
-# - BootCount (numeric)
-# - TemperatureMin, TemperatureMax (numeric)
-# - VoltageThresholds (sheet name for 1D numeric array)
-# - LegalNotice (string literal or sheet name for 1D bytes)
-# - AStructs (sheet name for 2D array: rows=10, cols=2; float32)
-# - Points3D (sheet name for 2D array: rows=5, cols=3; float32)
-# - SensorTable (sheet name for 2D array: rows=4, cols=4; uint16)
-
 [block.header]
 start_address = 0x8B000
 length = 0x1000
@@ -63,15 +44,16 @@ magic = { value = 0xDEADBEEF, type = "u32" }
 
 # Deeper nesting example (inline scalar and 1D array)
 nested.complex.level1.level2.level3.scalar16 = { value = 0x42, type = "u16" }
-nested.complex.level1.level2.level3.array1d = { value = [1, 2, 3, 4], type = "i16", size = 4 }
+nested.complex.level1.level2.level3.array1d = { value = [
+    1,
+    2,
+    3,
+    4,
+], type = "i16", size = 4 }
 
 # Arrays-of-structs as 2D arrays
 # AStruct { f32 A; f32 B; } AStructs[10]
 structs.astruct_array = { name = "AStructs", type = "f32", size = [10, 2] }
-# Point3f { f32 x; f32 y; f32 z; } Point3f[5]
-geom.points3f = { name = "Points3D", type = "f32", size = [5, 3] }
-# Additional 2D array example
-sensors.table = { name = "SensorTable", type = "u16", size = [4, 4] }
 
 [block2.header]
 start_address = 0x8C000
