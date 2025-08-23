@@ -120,43 +120,28 @@ fn main() -> Result<(), NvmError> {
 mod tests {
     use super::*;
     use std::fs;
-    use std::path::{Path, PathBuf};
-    use std::time::{Instant, SystemTime, UNIX_EPOCH};
+    use std::path::Path;
+    use std::time::Instant;
 
-    fn manifest_path<P: AsRef<Path>>(rel: P) -> String {
-        let base = Path::new(env!("CARGO_MANIFEST_DIR"));
-        base.join(rel).to_string_lossy().into_owned()
-    }
-
-    fn unique_out_dir(prefix: &str) -> PathBuf {
-        let pid = std::process::id();
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let mut dir = std::env::temp_dir();
-        dir.push(format!("{}_{}_{}", prefix, pid, nanos));
-        fs::create_dir_all(&dir).unwrap();
-        dir
+    fn rel<P: AsRef<Path>>(p: P) -> String {
+        p.as_ref().to_string_lossy().into_owned()
     }
 
     #[test]
     fn builds_block_from_toml_examples_and_writes_hex() {
-        let layout_path = manifest_path("examples/block.toml");
-        let xlsx_path = manifest_path("examples/data.xlsx");
+        let layout_path = rel("examples/block.toml");
+        let xlsx_path = rel("examples/data.xlsx");
         let layout = load_layout(&layout_path).expect("failed to parse TOML layout");
         let data_sheet = DataSheet::new(&xlsx_path, None, false).expect("failed to open Excel");
 
-        let out_dir = unique_out_dir("nvmbuilder_test_out");
-        build_block(&layout, &data_sheet, "block", 0, out_dir.to_str().unwrap())
-            .expect("build_block failed");
+        fs::create_dir_all("out").unwrap();
+        build_block(&layout, &data_sheet, "block", 0, "out").expect("build_block failed");
 
-        let hex_path = out_dir.join("block.hex");
+        let hex_path = Path::new("out").join("block.hex");
         assert!(hex_path.exists(), "hex file not created");
         let content = fs::read_to_string(&hex_path).expect("failed to read hex file");
 
         assert!(content.len() > 100, "hex output unexpectedly small");
-        // Look for 'Hello, world!' bytes followed by padding 0xC0 * 3
         assert!(
             content.contains("48656C6C6F2C20776F726C6421C0C0C0"),
             "expected string bytes not found in HEX"
@@ -165,12 +150,12 @@ mod tests {
 
     #[test]
     fn cross_format_hex_equality_for_block() {
-        let xlsx_path = manifest_path("examples/data.xlsx");
+        let xlsx_path = rel("examples/data.xlsx");
         let ds = DataSheet::new(&xlsx_path, None, false).expect("failed to open Excel");
 
-        let layout_toml = load_layout(&manifest_path("examples/block.toml")).expect("toml parse");
-        let layout_yaml = load_layout(&manifest_path("examples/block.yaml")).expect("yaml parse");
-        let layout_json = load_layout(&manifest_path("examples/block.json")).expect("json parse");
+        let layout_toml = load_layout(&rel("examples/block.toml")).expect("toml parse");
+        let layout_yaml = load_layout(&rel("examples/block.yaml")).expect("yaml parse");
+        let layout_json = load_layout(&rel("examples/block.json")).expect("json parse");
 
         let compute_hex = |cfg: &Config| -> String {
             let block = cfg.blocks.get("block").expect("block present");
@@ -191,17 +176,16 @@ mod tests {
 
     #[test]
     fn builds_all_blocks_from_toml_examples() {
-        let layout_path = manifest_path("examples/block.toml");
-        let xlsx_path = manifest_path("examples/data.xlsx");
+        let layout_path = rel("examples/block.toml");
+        let xlsx_path = rel("examples/data.xlsx");
         let layout = load_layout(&layout_path).expect("failed to parse TOML layout");
         let data_sheet = DataSheet::new(&xlsx_path, None, false).expect("failed to open Excel");
 
-        let out_dir = unique_out_dir("nvmbuilder_test_all");
+        fs::create_dir_all("out").unwrap();
         for name in ["block", "block2", "block3"] {
-            build_block(&layout, &data_sheet, name, 0, out_dir.to_str().unwrap())
-                .expect("build_block failed");
+            build_block(&layout, &data_sheet, name, 0, "out").expect("build_block failed");
             assert!(
-                out_dir.join(format!("{}.hex", name)).exists(),
+                Path::new("out").join(format!("{}.hex", name)).exists(),
                 "missing hex for {}",
                 name
             );
@@ -210,7 +194,6 @@ mod tests {
 
     #[test]
     fn perf_smoke_build_block_multiple_times() {
-        // Opt-in perf threshold (ms) via env var to avoid flaky CI failures
         let threshold_ms = std::env::var("NVM_TEST_PERF_MS")
             .ok()
             .and_then(|v| v.parse::<u128>().ok());
@@ -219,9 +202,8 @@ mod tests {
         }
         let threshold_ms = threshold_ms.unwrap();
 
-        let layout = load_layout(&manifest_path("examples/block.toml")).expect("layout parse");
-        let ds = DataSheet::new(&manifest_path("examples/data.xlsx"), None, false)
-            .expect("open Excel");
+        let layout = load_layout(&rel("examples/block.toml")).expect("layout parse");
+        let ds = DataSheet::new(&rel("examples/data.xlsx"), None, false).expect("open Excel");
 
         let iters = 3u32;
         let mut total_ms: u128 = 0;
