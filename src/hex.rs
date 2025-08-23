@@ -8,6 +8,7 @@ pub fn bytestream_to_hex_string(
     bytestream: &mut Vec<u8>,
     header: &Header,
     settings: &Settings,
+    offset: u32,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -63,7 +64,7 @@ pub fn bytestream_to_hex_string(
     };
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
-    let hex_string = emit_hex(header.start_address, &bytestream)?;
+    let hex_string = emit_hex(header.start_address + offset, &bytestream)?;
     Ok(hex_string)
 }
 
