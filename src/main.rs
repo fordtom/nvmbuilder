@@ -1,6 +1,5 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 
-mod emit;
 mod error;
 mod layout;
 mod schema;
