@@ -1,7 +1,15 @@
 [package]
 name = "nvmbuilder"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+description = "Build hex files from a layout file and excel data"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/fordtom/nvmbuilder"
+categories = ["command-line-utilities"]
+keywords = ["flash", "hex", "layout", "excel", "data"]
+
+exclude = ["examples/**", "flake.*"]
 
 [dependencies]
 calamine = "0.29.0"
