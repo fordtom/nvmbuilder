@@ -83,7 +83,7 @@ fn emit_hex(start_address: u32, bytestream: &Vec<u8>) -> Result<String, NvmError
     }
 
     records.push(Record::EndOfFile);
-    let obj = create_object_file_representation(&records).map_err(|e| {
+    let obj = create_object_file_representation(&records).map_err(|_| {
         NvmError::HexOutputError("Failed to create object file representation.".to_string())
     })?;
     Ok(obj)
