@@ -13,6 +13,36 @@
  * compatibility is required.
  */
 
+/* Array-of-structs examples */
+typedef struct {
+    float A;
+    float B;
+} AStruct; /* corresponds to f32[2] per row */
+
+typedef struct {
+    float x;
+    float y;
+    float z;
+} Point3f; /* corresponds to f32[3] per row */
+
+/* Deeply nested example types */
+typedef struct {
+    uint16_t scalar16;
+    int16_t  array1d[4];
+} DeepLevel3;
+
+typedef struct {
+    DeepLevel3 level3;
+} DeepLevel2;
+
+typedef struct {
+    DeepLevel2 level2;
+} DeepLevel1;
+
+typedef struct {
+    DeepLevel1 level1;
+} NestedComplex;
+
 typedef struct {
     /* some.struct.* */
     uint32_t some_struct_value;
@@ -38,6 +68,16 @@ typedef struct {
     /* message and magic */
     uint8_t  message[16];
     uint32_t magic;
+
+    /* deeper nesting (inline scalar and 1D array) */
+    NestedComplex nested_complex; /* maps to nested.complex.level1.level2.level3.* */
+
+    /* arrays-of-structs as 2D arrays */
+    AStruct  structs_astruct_array[10]; /* structs.astruct_array size=[10,2] */
+    Point3f  geom_points3f[5];          /* geom.points3f size=[5,3] */
+
+    /* additional 2D array */
+    uint16_t sensors_table[4][4]; /* sensors.table size=[4,4] */
 } block_t;
 
 
