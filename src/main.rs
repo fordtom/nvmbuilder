@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 
 mod error;
+mod hex;
 mod layout;
 mod schema;
 mod variants;
