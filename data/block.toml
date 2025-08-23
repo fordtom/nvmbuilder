@@ -11,7 +11,6 @@ reverse = true
 start_address = 0x8B000
 length = 0x1000
 crc_location = 0x8BFF0
-padding = 0xC0
 
 # Avoid using the names 'value', 'type' and 'name' for the data entries
 [block.data]

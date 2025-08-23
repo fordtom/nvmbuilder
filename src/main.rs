@@ -65,7 +65,7 @@ fn main() -> Result<(), NvmError> {
     println!("Block header: {:?}", block.header);
 
     // Test the DataSheet constructor
-    let data_sheet = match variants::DataSheet::new("data/data.xlsx", Some("VarA"), true) {
+    let data_sheet = match variants::DataSheet::new("data/data.xlsx", None, false) {
         Ok(data_sheet) => {
             println!("✅ Successfully loaded DataSheet!");
             data_sheet
