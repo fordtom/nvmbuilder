@@ -31,4 +31,7 @@ pub enum NvmError {
 
     #[error("Misc error: {0}.")]
     MiscError(String),
+
+    #[error("Hex output error: {0}.")]
+    HexOutputError(String),
 }
