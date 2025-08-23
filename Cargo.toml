@@ -9,7 +9,7 @@ repository = "https://github.com/fordtom/nvmbuilder"
 categories = ["command-line-utilities"]
 keywords = ["flash", "hex", "layout", "excel", "data"]
 
-exclude = ["examples/**", "flake.*"]
+exclude = ["examples/**", "flake.*", ".envrc", ".cursor/**"]
 
 [dependencies]
 calamine = "0.29.0"
