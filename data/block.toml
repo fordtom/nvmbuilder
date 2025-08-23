@@ -19,6 +19,12 @@ some.struct.value2 = { name = "Value 2", type = "u32" }
 
 some.struct.value3 = { value = "Value 3", type = "u8", size = 10 }
 
+[block2.header]
+start_address = 0x8C000
+length = 0x1000
+crc_location = 0x8CFF0
+
 # Size is a 2D array of 10 rows and 2 columns
+[block2.data]
 another.struct.value = { name = "Array", type = "u16", size = [10, 2] }
 another.struct.arr = { value = [2, 2], type = "u16", size = 2 }
