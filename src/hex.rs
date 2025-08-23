@@ -15,11 +15,23 @@ pub fn bytestream_to_hex_string(
         ));
     }
 
-    if header.crc_location < header.start_address + bytestream.len() as u32
-        || header.crc_location > header.start_address - 4 + header.length as u32
-    {
+    let crc_offset = header
+        .crc_location
+        .checked_sub(header.start_address)
+        .ok_or_else(|| NvmError::HexOutputError("CRC before block start.".to_string()))?;
+
+    if crc_offset < bytestream.len() as u32 {
         return Err(NvmError::HexOutputError(
-            "CRC location is out of bounds.".to_string(),
+            "CRC overlaps with payload.".to_string(),
+        ));
+    }
+
+    let remaining_space = header.length.checked_sub(crc_offset).ok_or_else(|| {
+        NvmError::HexOutputError("CRC location is beyond block length.".to_string())
+    })?;
+    if remaining_space < 4 {
+        return Err(NvmError::HexOutputError(
+            "CRC location would overrun block.".to_string(),
         ));
     }
 
@@ -55,7 +67,7 @@ pub fn bytestream_to_hex_string(
     Ok(hex_string)
 }
 
-fn emit_hex(start_address: u32, bytestream: &Vec<u8>) -> Result<String, NvmError> {
+fn emit_hex(start_address: u32, bytestream: &[u8]) -> Result<String, NvmError> {
     let mut records = Vec::<Record>::new();
     let mut addr = start_address;
     let mut idx = 0usize;

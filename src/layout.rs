@@ -56,6 +56,11 @@ impl LeafEntry {
         match &self.source {
             EntrySource::Name(name) => match data_sheet.retrieve_1d_array_or_string(name)? {
                 ValueSource::Single(v) => {
+                    if !matches!(self.scalar_type, ScalarType::U8) {
+                        return Err(NvmError::DataValueExportFailed(
+                            "Strings should have type u8.".to_string(),
+                        ));
+                    }
                     out.extend(v.string_to_bytes()?);
                 }
                 ValueSource::Array(v) => {
@@ -70,6 +75,11 @@ impl LeafEntry {
                 }
             }
             EntrySource::Value(ValueSource::Single(v)) => {
+                if !matches!(self.scalar_type, ScalarType::U8) {
+                    return Err(NvmError::DataValueExportFailed(
+                        "Strings should have type u8.".to_string(),
+                    ));
+                }
                 out.extend(v.string_to_bytes()?);
             }
         }
