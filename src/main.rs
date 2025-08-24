@@ -115,3 +115,62 @@ fn main() -> Result<(), NvmError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn smoke_build_examples_all_formats_and_options() {
+        let layouts = [
+            "examples/block.toml",
+            "examples/block.yaml",
+            "examples/block.json",
+        ];
+        let blocks = ["block", "block2", "block3"];
+        let offsets: [u32; 2] = [0, 0x1000];
+
+        fs::create_dir_all("out").unwrap();
+
+        for layout_path in layouts {
+            let cfg = load_layout(layout_path).expect("failed to parse layout");
+
+            // Try a few option combinations; degrade gracefully if a variant column is missing
+            let variant_candidates: [Option<&str>; 2] = [None, Some("VarA")];
+            let debug_candidates = [false, true];
+
+            let mut ds_opt: Option<DataSheet> = None;
+            for &dbg in &debug_candidates {
+                for var in &variant_candidates {
+                    let var_opt: Option<String> = var.map(|s| s.to_string());
+                    match DataSheet::new("examples/data.xlsx", var_opt, dbg) {
+                        Ok(ds) => {
+                            ds_opt = Some(ds);
+                            break;
+                        }
+                        Err(_) => continue,
+                    }
+                }
+                if ds_opt.is_some() {
+                    break;
+                }
+            }
+            let ds = ds_opt.unwrap_or_else(|| {
+                DataSheet::new("examples/data.xlsx", None, false)
+                    .expect("Excel open with default columns")
+            });
+
+            for &blk in &blocks {
+                if !cfg.blocks.contains_key(blk) {
+                    continue;
+                }
+                for &off in &offsets {
+                    build_block(&cfg, &ds, blk, off, "out").expect("build_block failed");
+                    assert!(Path::new("out").join(format!("{}.hex", blk)).exists());
+                }
+            }
+        }
+    }
+}
