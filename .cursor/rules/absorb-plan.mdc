@@ -1,0 +1,62 @@
+---
+alwaysApply: false
+---
+Design Doc – Self-Contained Executable with Embedded Public Data
+
+Goal
+
+Enable our Rust tool to generate a new self-contained executable that embeds user-provided data files (e.g. config.toml, Excel sheets) inside itself.
+This allows distributing a single binary with no external dependencies, while still supporting flexible data injection at runtime.
+
+⸻
+
+Problem
+	•	During development we use both private and public data files.
+	•	When sharing the tool, we want only the public data included.
+	•	Recompiling with include_str! is clumsy; we want a runtime command such as:
+
+app generate-new --absorb config.toml --absorb data.xlsx
+
+
+
+⸻
+
+High-Level Solution
+	1.	Base executable runs normally, but supports two modes:
+	•	generate-new: creates a new binary with embedded data.
+	•	Normal run: loads embedded data if present.
+	2.	Embedding approach:
+	•	Copy the current executable.
+	•	Append absorbed files (in plain text or serialised form).
+	•	Append a small table of contents (TOC) (JSON) plus a footer containing magic bytes + TOC length.
+	•	Result = one file: [original exe][data blobs][TOC][footer].
+	3.	Runtime loading:
+	•	On startup, check for footer.
+	•	If found, read TOC → know offsets/sizes.
+	•	Load blobs into memory and parse them as if they were normal files.
+
+⸻
+
+Benefits
+	•	Single portable binary: no sidecar files.
+	•	Cross-platform: works for ELF, Mach-O, PE without touching binary internals.
+	•	No rebuild required: embedding happens at runtime.
+	•	Format-agnostic: TOML, CSV/JSON (from Excel), or any text/binary.
+	•	Simple parsing: just file I/O and JSON.
+
+⸻
+
+Risks & Mitigations
+	•	Code signing / notarisation (macOS, Windows): must re-sign after embedding.
+	•	Executable size growth: mitigate via compression if needed.
+	•	Tampering: no integrity checks by default; optional checksum could be added.
+
+⸻
+
+Example Usage
+
+# Generate new binary with embedded public files
+app generate-new --absorb config.toml --absorb sheet.xlsx --out tool-with-data
+
+# Run the new binary
+./tool-with-data
