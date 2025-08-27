@@ -13,6 +13,7 @@ fn parse_offset(offset: &str) -> Result<u32, NvmError> {
         .map_err(|_| NvmError::MiscError(format!("invalid offset provided: {}", offset)))
 }
 
+// Eventually these should be split per section once modules expand and become more complex
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Build flash blocks from layout + Excel data")]
 pub struct Args {
