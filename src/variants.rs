@@ -13,7 +13,7 @@ pub struct DataSheet {
 }
 
 impl DataSheet {
-    pub fn new(filename: &str, variant: Option<String>, debug: bool) -> Result<Self, NvmError> {
+    pub fn new(filename: &str, variant: &Option<String>, debug: bool) -> Result<Self, NvmError> {
         let mut workbook: Xlsx<_> = open_workbook(filename)
             .map_err(|_| NvmError::FileError("failed to open file: ".to_string() + filename))?;
 

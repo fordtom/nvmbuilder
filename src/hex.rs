@@ -17,26 +17,6 @@ pub fn bytestream_to_hex_string(
     header: &Header,
     settings: &Settings,
     offset: u32,
-) -> Result<String, NvmError> {
-    bytestream_to_hex_string_inner(bytestream, header, settings, offset, false)
-}
-
-/// Same as bytestream_to_hex_string, with optional 32-bit word swap prior to CRC and emission.
-pub fn bytestream_to_hex_string_with_swap(
-    bytestream: &mut Vec<u8>,
-    header: &Header,
-    settings: &Settings,
-    offset: u32,
-    word_swap: bool,
-) -> Result<String, NvmError> {
-    bytestream_to_hex_string_inner(bytestream, header, settings, offset, word_swap)
-}
-
-fn bytestream_to_hex_string_inner(
-    bytestream: &mut Vec<u8>,
-    header: &Header,
-    settings: &Settings,
-    offset: u32,
     word_swap: bool,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
