@@ -4,11 +4,20 @@ use crate::schema::*;
 use crc::{Algorithm, Crc};
 use ihex::{create_object_file_representation, Record};
 
+// Swap 16-bit halves within each 32-bit word in-place: [b0 b1 b2 b3] -> [b2 b3 b0 b1]
+fn word_swap_32_inplace(bytes: &mut [u8]) {
+    for chunk in bytes.chunks_exact_mut(4) {
+        chunk.swap(0, 2);
+        chunk.swap(1, 3);
+    }
+}
+
 pub fn bytestream_to_hex_string(
     bytestream: &mut Vec<u8>,
     header: &Header,
     settings: &Settings,
     offset: u32,
+    word_swap: bool,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -38,6 +47,11 @@ pub fn bytestream_to_hex_string(
 
     bytestream.resize(header.length as usize, header.padding);
 
+    // Apply optional 32-bit word swap across the entire stream before CRC
+    if word_swap {
+        word_swap_32_inplace(bytestream);
+    }
+
     let crc_offset = header.crc_location - header.start_address;
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].fill(0);
 
@@ -58,10 +72,14 @@ pub fn bytestream_to_hex_string(
     crc_digest.update(&bytestream);
     let crc_val = crc_digest.finalize();
 
-    let crc_bytes = match settings.endianness {
+    let mut crc_bytes = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
         Endianness::Little => crc_val.to_le_bytes(),
     };
+    if word_swap {
+        crc_bytes.swap(0, 2);
+        crc_bytes.swap(1, 3);
+    }
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
     let hex_string = emit_hex(header.start_address + offset, &bytestream)?;
