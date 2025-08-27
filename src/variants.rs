@@ -1,4 +1,4 @@
-use calamine::{open_workbook, Data, Range, Reader, Xlsx};
+use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 
 use crate::error::*;
@@ -61,7 +61,7 @@ impl DataSheet {
         }
 
         let mut variant_values: Option<Vec<Data>> = None;
-        if let Some(ref name) = variant {
+        if let &Some(ref name) = variant {
             let variant_index = headers
                 .iter()
                 .position(|cell| cell.to_string() == *name)
