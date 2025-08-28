@@ -31,7 +31,8 @@ pub struct CrcData {
     pub polynomial: u32,
     pub start: u32,
     pub xor_out: u32,
-    pub reverse: bool,
+    pub ref_in: bool,
+    pub ref_out: bool,
 }
 
 /// Flash block.

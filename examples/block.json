@@ -5,7 +5,8 @@
             "polynomial": 79764919,
             "start": 4294967295,
             "xor_out": 4294967295,
-            "reverse": true
+            "ref_in": true,
+            "ref_out": true
         }
     },
     "block": {
