@@ -21,7 +21,22 @@
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
           extensions = ["rust-src" "rustfmt" "clippy"];
         };
+
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+
+        pname = cargoToml.package.name;
+        version = cargoToml.package.version;
       in {
+        packages = rec {
+          default = nvmbuilder;
+          nvmbuilder = pkgs.rustPlatform.buildRustPackage {
+            inherit pname version;
+            src = ./.;
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoHash = pkgs.lib.fakeHash; # replace with printed value after first build
+          };
+        };
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             rustToolchain
