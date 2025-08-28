@@ -343,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "nvmbuilder"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "calamine",
  "clap",
