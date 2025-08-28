@@ -1,6 +1,6 @@
 [package]
 name = "nvmbuilder"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2024"
 description = "Build hex files from a layout file and excel data"
 license = "MIT"
