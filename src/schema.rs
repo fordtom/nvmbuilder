@@ -41,12 +41,19 @@ pub struct Block {
     pub data: Entry,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum CrcLocation {
+    Keyword(String),
+    Address(u32),
+}
+
 /// Flash block header.
 #[derive(Debug, Deserialize)]
 pub struct Header {
     pub start_address: u32,
     pub length: u32,
-    pub crc_location: u32,
+    pub crc_location: CrcLocation,
     #[serde(default = "default_padding")]
     pub padding: u8,
 }
