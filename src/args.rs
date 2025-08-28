@@ -45,8 +45,8 @@ pub struct Args {
     #[arg(short = 'd', long, help = "Use the Debug column when present")]
     pub debug: bool,
 
-    #[arg(long, help = "Swap words in place (for TI)")]
-    pub word_swap: bool,
+    #[arg(long, help = "Swap bytes in place (for TI)")]
+    pub byte_swap: bool,
 
     #[arg(
         short = 'o',
