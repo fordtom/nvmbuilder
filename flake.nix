@@ -19,9 +19,24 @@
           overlays = [(import rust-overlay)];
         };
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-          extensions = ["rust-src" "rustfmt" "clippy"];
+          extensions = ["rust-src" "rustfmt" "clippy" "rust-analyzer"];
         };
+
+        cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
+
+        pname = cargoToml.package.name;
+        version = cargoToml.package.version;
       in {
+        packages = rec {
+          default = nvmbuilder;
+          nvmbuilder = pkgs.rustPlatform.buildRustPackage {
+            inherit pname version;
+            src = ./.;
+            cargoLock.lockFile = ./Cargo.lock;
+            buildType = "release";
+          };
+        };
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             rustToolchain

@@ -25,7 +25,7 @@ fn calculate_crc(bytestream: &[u8], crc_settings: &CrcData) -> u32 {
 
     let crc_calc = Crc::<u32>::new(algo_static);
     let mut crc_digest = crc_calc.digest();
-    crc_digest.update(&bytestream);
+    crc_digest.update(bytestream);
     crc_digest.finalize()
 }
 
@@ -91,7 +91,7 @@ pub fn bytestream_to_hex_string(
     bytestream.resize(header.length as usize, header.padding);
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
-    let hex_string = emit_hex(header.start_address + offset, &bytestream)?;
+    let hex_string = emit_hex(header.start_address + offset, bytestream)?;
     Ok(hex_string)
 }
 
