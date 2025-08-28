@@ -33,7 +33,7 @@
             inherit pname version;
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
-            cargoHash = pkgs.lib.fakeHash; # replace with printed value after first build
+            buildType = "release";
           };
         };
 
