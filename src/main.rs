@@ -34,7 +34,7 @@ fn build_block(
         &block.header,
         &layout.settings,
         args.offset,
-        args.word_swap,
+        args.byte_swap,
     )?;
 
     let out_path = Path::new(&args.out).join(format!("{}.hex", block_name));
@@ -121,7 +121,7 @@ mod tests {
                             xlsx: "examples/data.xlsx".to_string(),
                             variant: None,
                             debug: false,
-                            word_swap: false,
+                            byte_swap: false,
                             out: "out".to_string(),
                             offset: off,
                         },
