@@ -27,47 +27,12 @@ pub enum Endianness {
 
 /// CRC settings.
 #[derive(Debug, Deserialize)]
-#[serde(from = "CrcDataWire")]
 pub struct CrcData {
     pub polynomial: u32,
     pub start: u32,
     pub xor_out: u32,
     pub ref_in: bool,
     pub ref_out: bool,
-}
-
-/// Wire format for CRC settings to support backwards compatibility.
-#[derive(Debug, Deserialize)]
-struct CrcDataWire {
-    pub polynomial: u32,
-    pub start: u32,
-    pub xor_out: u32,
-    /// Legacy single flag. If set, applies to both ref_in and ref_out.
-    #[serde(default)]
-    pub reverse: Option<bool>,
-    /// Alternate legacy name sometimes used for reflection.
-    #[serde(default)]
-    pub reflect: Option<bool>,
-    /// Preferred separate flags.
-    #[serde(default)]
-    pub ref_in: Option<bool>,
-    #[serde(default)]
-    pub ref_out: Option<bool>,
-}
-
-impl From<CrcDataWire> for CrcData {
-    fn from(raw: CrcDataWire) -> Self {
-        let legacy_reflect = raw.reverse.or(raw.reflect).unwrap_or(false);
-        let ref_in = raw.ref_in.unwrap_or(legacy_reflect);
-        let ref_out = raw.ref_out.unwrap_or(legacy_reflect);
-        CrcData {
-            polynomial: raw.polynomial,
-            start: raw.start,
-            xor_out: raw.xor_out,
-            ref_in,
-            ref_out,
-        }
-    }
 }
 
 /// Flash block.
