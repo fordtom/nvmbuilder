@@ -4,7 +4,8 @@ settings:
     polynomial: 0x04C11DB7
     start: 0xFFFFFFFF
     xor_out: 0xFFFFFFFF
-    reverse: true
+    ref_in: true
+    ref_out: true
 
 block:
   header:
