@@ -137,11 +137,9 @@ impl LeafEntry {
 
                 Ok(out)
             }
-            EntrySource::Value(_) => {
-                return Err(NvmError::DataValueExportFailed(
-                    "2D arrays within the layout file are not supported.".to_string(),
-                ));
-            }
+            EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
+                "2D arrays within the layout file are not supported.".to_string(),
+            )),
         }
     }
 }

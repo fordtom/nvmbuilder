@@ -61,7 +61,7 @@ impl DataSheet {
         }
 
         let mut variant_values: Option<Vec<Data>> = None;
-        if let &Some(ref name) = variant {
+        if let Some(name) = variant {
             let variant_index = headers
                 .iter()
                 .position(|cell| cell.to_string() == *name)
@@ -112,7 +112,7 @@ impl DataSheet {
             let mut out = Vec::new();
 
             for row in sheet.rows().skip(1) {
-                match row.get(0) {
+                match row.first() {
                     Some(cell) if !Self::cell_is_empty(cell) => {
                         let v = match cell {
                             Data::Int(i) => DataValue::I64(*i),
@@ -144,7 +144,7 @@ impl DataSheet {
         };
 
         let sheet = self.sheets.get(cell_string).ok_or_else(|| {
-            NvmError::RetrievalError("Sheet not found: ".to_string() + &cell_string)
+            NvmError::RetrievalError("Sheet not found: ".to_string() + cell_string)
         })?;
 
         let convert = |cell: &Data| -> Result<DataValue, NvmError> {
@@ -171,7 +171,7 @@ impl DataSheet {
         let mut out = Vec::new();
 
         'outer: for row in rows {
-            if row.get(0).map_or(true, |c| Self::cell_is_empty(c)) {
+            if row.first().is_none_or(Self::cell_is_empty) {
                 break;
             }
 
@@ -200,26 +200,16 @@ impl DataSheet {
                 "index not found for ".to_string() + name,
             ))?;
 
-        if let Some(debug_values) = &self.debug_values {
-            if let Some(debug) = debug_values.get(index) {
-                if !Self::cell_is_empty(debug) {
-                    return Ok(debug);
-                }
-            }
-        }
-
-        if let Some(variant_values) = &self.variant_values {
-            if let Some(variant) = variant_values.get(index) {
-                if !Self::cell_is_empty(variant) {
-                    return Ok(variant);
-                }
-            }
-        }
-
-        if let Some(default) = self.default_values.get(index) {
-            if !Self::cell_is_empty(default) {
-                return Ok(default);
-            }
+        if let Some(v) = [
+            self.debug_values.as_ref().and_then(|v| v.get(index)),
+            self.variant_values.as_ref().and_then(|v| v.get(index)),
+            self.default_values.get(index),
+        ]
+        .iter()
+        .flatten()
+        .find(|d| !Self::cell_is_empty(d))
+        {
+            return Ok(v);
         }
 
         Err(NvmError::RetrievalError(
