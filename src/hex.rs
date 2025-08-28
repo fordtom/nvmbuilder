@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::schema::*;
 
 use crc::{Algorithm, Crc};
-use ihex::{create_object_file_representation, Record};
+use ihex::{Record, create_object_file_representation};
 
 // Swap 16-bit halves within each 32-bit word in-place: [b0 b1 b2 b3] -> [b2 b3 b0 b1]
 fn word_swap_32_inplace(bytes: &mut [u8]) {
@@ -10,6 +10,25 @@ fn word_swap_32_inplace(bytes: &mut [u8]) {
         chunk.swap(0, 2);
         chunk.swap(1, 3);
     }
+}
+
+fn calculate_crc(bytestream: &[u8], crc_settings: &CrcData) -> u32 {
+    let crc_algo = Algorithm::<u32> {
+        width: 32,
+        poly: crc_settings.polynomial,
+        init: crc_settings.start,
+        refin: false,
+        refout: crc_settings.reverse,
+        xorout: crc_settings.xor_out,
+        check: 0,
+        residue: 0,
+    };
+    let algo_static: &'static Algorithm<u32> = Box::leak(Box::new(crc_algo));
+
+    let crc_calc = Crc::<u32>::new(algo_static);
+    let mut crc_digest = crc_calc.digest();
+    crc_digest.update(&bytestream);
+    crc_digest.finalize()
 }
 
 pub fn bytestream_to_hex_string(
@@ -25,52 +44,12 @@ pub fn bytestream_to_hex_string(
         ));
     }
 
-    let crc_offset = header
-        .crc_location
-        .checked_sub(header.start_address)
-        .ok_or_else(|| NvmError::HexOutputError("CRC before block start.".to_string()))?;
-
-    if crc_offset < bytestream.len() as u32 {
-        return Err(NvmError::HexOutputError(
-            "CRC overlaps with payload.".to_string(),
-        ));
-    }
-
-    let remaining_space = header.length.checked_sub(crc_offset).ok_or_else(|| {
-        NvmError::HexOutputError("CRC location is beyond block length.".to_string())
-    })?;
-    if remaining_space < 4 {
-        return Err(NvmError::HexOutputError(
-            "CRC location would overrun block.".to_string(),
-        ));
-    }
-
-    bytestream.resize(header.length as usize, header.padding);
-
     // Apply optional 32-bit word swap across the entire stream before CRC
     if word_swap {
         word_swap_32_inplace(bytestream);
     }
 
-    let crc_offset = header.crc_location - header.start_address;
-    bytestream[crc_offset as usize..(crc_offset + 4) as usize].fill(0);
-
-    let crc_algo = Algorithm::<u32> {
-        width: 32,
-        poly: settings.crc.polynomial,
-        init: settings.crc.start,
-        refin: false,
-        refout: settings.crc.reverse,
-        xorout: settings.crc.xor_out,
-        check: 0,
-        residue: 0,
-    };
-    let algo_static: &'static Algorithm<u32> = Box::leak(Box::new(crc_algo));
-
-    let crc_calc = Crc::<u32>::new(algo_static);
-    let mut crc_digest = crc_calc.digest();
-    crc_digest.update(&bytestream);
-    let crc_val = crc_digest.finalize();
+    let crc_val = calculate_crc(bytestream, &settings.crc);
 
     let mut crc_bytes = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
@@ -80,6 +59,39 @@ pub fn bytestream_to_hex_string(
         crc_bytes.swap(0, 2);
         crc_bytes.swap(1, 3);
     }
+
+    let crc_offset = match &header.crc_location {
+        CrcLocation::Address(address) => {
+            let crc_offset = address.checked_sub(header.start_address).ok_or_else(|| {
+                NvmError::HexOutputError("CRC address before block start.".to_string())
+            })?;
+
+            if crc_offset < bytestream.len() as u32 {
+                return Err(NvmError::HexOutputError(
+                    "CRC overlaps with payload.".to_string(),
+                ));
+            }
+
+            crc_offset
+        }
+        CrcLocation::Keyword(option) => match option.as_str() {
+            "end" => bytestream.len() as u32,
+            _ => {
+                return Err(NvmError::HexOutputError(format!(
+                    "Invalid CRC location: {}",
+                    option
+                )));
+            }
+        },
+    };
+
+    if header.length < crc_offset + 4 {
+        return Err(NvmError::HexOutputError(
+            "CRC location would overrun block.".to_string(),
+        ));
+    }
+
+    bytestream.resize(header.length as usize, header.padding);
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
     let hex_string = emit_hex(header.start_address + offset, &bytestream)?;

@@ -10,7 +10,7 @@ reverse = true
 [block.header]
 start_address = 0x8B000
 length = 0x1000
-crc_location = 0x8BFF0
+crc_location = "end"
 padding = 0xC0
 
 [block.data]

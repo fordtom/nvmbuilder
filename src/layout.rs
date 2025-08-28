@@ -163,6 +163,15 @@ impl Block {
             &settings.endianness,
             &self.header.padding,
         )?;
+
+        if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
+            // Padding out to the 4 byte boundary for appended/prepended CRC32
+            while offset % 4 != 0 {
+                buffer.push(self.header.padding);
+                offset += 1;
+            }
+        }
+
         Ok(buffer)
     }
 
