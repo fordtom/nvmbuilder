@@ -1,32 +1,13 @@
+use crate::checksum;
 use crate::error::*;
 use crate::schema::*;
 
-use crc::{Algorithm, Crc};
 use ihex::{Record, create_object_file_representation};
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
     for chunk in bytes.chunks_exact_mut(2) {
         chunk.swap(0, 1);
     }
-}
-
-fn calculate_crc(bytestream: &[u8], crc_settings: &CrcData) -> u32 {
-    let crc_algo = Algorithm::<u32> {
-        width: 32,
-        poly: crc_settings.polynomial,
-        init: crc_settings.start,
-        refin: crc_settings.ref_in,
-        refout: crc_settings.ref_out,
-        xorout: crc_settings.xor_out,
-        check: 0,
-        residue: 0,
-    };
-    let algo_static: &'static Algorithm<u32> = Box::leak(Box::new(crc_algo));
-
-    let crc_calc = Crc::<u32>::new(algo_static);
-    let mut crc_digest = crc_calc.digest();
-    crc_digest.update(bytestream);
-    crc_digest.finalize()
 }
 
 pub fn bytestream_to_hex_string(
@@ -47,7 +28,7 @@ pub fn bytestream_to_hex_string(
         byte_swap_inplace(bytestream);
     }
 
-    let crc_val = calculate_crc(bytestream, &settings.crc);
+    let crc_val = checksum::calculate_crc(bytestream);
 
     let mut crc_bytes = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
