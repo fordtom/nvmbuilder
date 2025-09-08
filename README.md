@@ -15,7 +15,7 @@ nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> [-v <VARIANT>] [-d] [-o <DIR>] [--of
 - **-d, --debug**: prefer the Debug column when present (optional)
 - **-o, --out DIR**: output directory for `.hex` files (default: `out`)
 - **--offset OFFSET**: Optional u32 virtual address offset (hex or dec)
-- **--record-width N**: number of bytes per HEX data record (default: 32; range 1..=255)
+- **--record-width N**: number of bytes per HEX data record (default: 32; range 1..=64)
 
 The order of preference for value selection is debug -> variant -> default. Ensure you always have default filled. Strings in the excel can point to different sheets as a way of providing arrays.
 

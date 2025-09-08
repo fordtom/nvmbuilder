@@ -18,11 +18,11 @@ fn parse_record_width(width: &str) -> Result<usize, NvmError> {
         .trim()
         .parse::<usize>()
         .map_err(|_| NvmError::MiscError(format!("invalid record width provided: {}", width)))?;
-    if (1..=255).contains(&parsed) {
+    if (1..=64).contains(&parsed) {
         Ok(parsed)
     } else {
         Err(NvmError::MiscError(format!(
-            "record width must be in 1..=255, got {}",
+            "record width must be in 1..=64, got {}",
             parsed
         )))
     }
@@ -94,7 +94,7 @@ pub struct Args {
         value_name = "N",
         default_value_t = 32usize,
         value_parser = parse_record_width,
-        help = "Number of bytes per HEX data record (1..=255)"
+        help = "Number of bytes per HEX data record (1..=64)"
     )]
     pub record_width: usize,
 }
