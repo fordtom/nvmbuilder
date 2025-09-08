@@ -34,7 +34,7 @@ fn build_block(
         &layout.settings,
         args.offset,
         args.byte_swap,
-        args.record_width,
+        args.record_width as usize,
     )?;
 
     let out_path = Path::new(&args.out).join(format!("{}.hex", block_name));
