@@ -5,7 +5,9 @@ Build flash blocks from a layout file (TOML/YAML/JSON) and an Excel workbook, th
 ### Usage
 
 ```bash
-nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> [-v <VARIANT>] [-d] [-o <DIR>] [--offset <OFFSET>]
+nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> \
+  [-v <VARIANT>] [-d] [-o <DIR>] [--offset <OFFSET>] \
+  [--prefix <STR>] [--suffix <STR>]
 ```
 
 - **BLOCK**: one or more block names to build (positional)
@@ -15,6 +17,8 @@ nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> [-v <VARIANT>] [-d] [-o <DIR>] [--of
 - **-d, --debug**: prefer the Debug column when present (optional)
 - **-o, --out DIR**: output directory for `.hex` files (default: `out`)
 - **--offset OFFSET**: Optional u32 virtual address offset (hex or dec)
+- **--prefix STR**: Optional string prepended to block name in output filename
+- **--suffix STR**: Optional string appended to block name in output filename
 
 The order of preference for value selection is debug -> variant -> default. Ensure you always have default filled. Strings in the excel can point to different sheets as a way of providing arrays.
 
@@ -34,6 +38,6 @@ nvmbuilder block -l examples/block.yaml -x examples/data.xlsx -o out --offset 0x
 nvmbuilder block -l examples/block.json -x examples/data.xlsx -o out
 ```
 
-Outputs are written to the chosen directory as `{block}.hex`.
+Outputs are written to the chosen directory as `{prefix}{block}{suffix}.hex`.
 
 
