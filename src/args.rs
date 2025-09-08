@@ -73,6 +73,22 @@ pub struct Args {
         help = "Optional virtual address offset (hex or dec)"
     )]
     pub offset: u32,
+  
+    #[arg(
+        long,
+        value_name = "STR",
+        default_value = "",
+        help = "Optional prefix to prepend to each block name in output filename"
+    )]
+    pub prefix: String,
+
+    #[arg(
+        long,
+        value_name = "STR",
+        default_value = "",
+        help = "Optional suffix to append to each block name in output filename"
+    )]
+    pub suffix: String,
 
     #[arg(
         long,
