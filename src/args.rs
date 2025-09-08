@@ -1,5 +1,5 @@
 use crate::error::*;
-use clap::{Parser, builder::ValueParser};
+use clap::Parser;
 
 fn parse_offset(offset: &str) -> Result<u32, NvmError> {
     let s = offset.trim();
