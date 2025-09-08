@@ -38,6 +38,6 @@ nvmbuilder block -l examples/block.yaml -x examples/data.xlsx -o out --offset 0x
 nvmbuilder block -l examples/block.json -x examples/data.xlsx -o out
 ```
 
-Outputs are written to the chosen directory as `{prefix}{block}{suffix}.hex`.
+Outputs are written to the chosen directory as `{prefix}_{block}_{suffix}.hex`, omitting empty parts and their underscores. Examples: `block.hex`, `PRE_block.hex`, `block_SUF.hex`, `PRE_block_SUF.hex`.
 
 
