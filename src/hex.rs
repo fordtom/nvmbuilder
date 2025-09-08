@@ -16,6 +16,7 @@ pub fn bytestream_to_hex_string(
     settings: &Settings,
     offset: u32,
     byte_swap: bool,
+    record_width: usize,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -72,11 +73,11 @@ pub fn bytestream_to_hex_string(
     bytestream.resize(header.length as usize, header.padding);
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
-    let hex_string = emit_hex(header.start_address + offset, bytestream)?;
+    let hex_string = emit_hex(header.start_address + offset, bytestream, record_width)?;
     Ok(hex_string)
 }
 
-fn emit_hex(start_address: u32, bytestream: &[u8]) -> Result<String, NvmError> {
+fn emit_hex(start_address: u32, bytestream: &[u8], record_width: usize) -> Result<String, NvmError> {
     let mut records = Vec::<Record>::new();
     let mut addr = start_address;
     let mut idx = 0usize;
@@ -92,7 +93,7 @@ fn emit_hex(start_address: u32, bytestream: &[u8]) -> Result<String, NvmError> {
         }
 
         let seg_rem = (0x1_0000 - (addr & 0xFFFF)) as usize;
-        let n = (bytestream.len() - idx).min(32).min(seg_rem);
+        let n = (bytestream.len() - idx).min(record_width).min(seg_rem);
 
         records.push(Record::Data {
             offset: (addr & 0xFFFF) as u16,

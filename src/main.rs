@@ -34,6 +34,7 @@ fn build_block(
         &layout.settings,
         args.offset,
         args.byte_swap,
+        args.record_width,
     )?;
 
     let out_path = Path::new(&args.out).join(format!("{}.hex", block_name));
@@ -127,6 +128,7 @@ mod tests {
                             out: "out".to_string(),
                             offset: off,
                             main_sheet: "Main".to_string(),
+                            record_width: 32,
                         },
                     )
                     .expect("build_block failed");

@@ -13,6 +13,21 @@ fn parse_offset(offset: &str) -> Result<u32, NvmError> {
         .map_err(|_| NvmError::MiscError(format!("invalid offset provided: {}", offset)))
 }
 
+fn parse_record_width(width: &str) -> Result<usize, NvmError> {
+    let parsed = width
+        .trim()
+        .parse::<usize>()
+        .map_err(|_| NvmError::MiscError(format!("invalid record width provided: {}", width)))?;
+    if (1..=255).contains(&parsed) {
+        Ok(parsed)
+    } else {
+        Err(NvmError::MiscError(format!(
+            "record width must be in 1..=255, got {}",
+            parsed
+        )))
+    }
+}
+
 // Eventually these should be split per section once modules expand and become more complex
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Build flash blocks from layout + Excel data")]
@@ -73,4 +88,13 @@ pub struct Args {
         help = "Optional virtual address offset (hex or dec)"
     )]
     pub offset: u32,
+    
+    #[arg(
+        long,
+        value_name = "N",
+        default_value_t = 32usize,
+        value_parser = parse_record_width,
+        help = "Number of bytes per HEX data record (1..=255)"
+    )]
+    pub record_width: usize,
 }
