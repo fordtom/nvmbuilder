@@ -13,12 +13,17 @@ pub struct DataSheet {
 }
 
 impl DataSheet {
-    pub fn new(filename: &str, variant: &Option<String>, debug: bool) -> Result<Self, NvmError> {
+    pub fn new(
+        filename: &str,
+        variant: &Option<String>,
+        debug: bool,
+        main_sheet_name: &str,
+    ) -> Result<Self, NvmError> {
         let mut workbook: Xlsx<_> = open_workbook(filename)
             .map_err(|_| NvmError::FileError("failed to open file: ".to_string() + filename))?;
 
         let main_sheet = workbook
-            .worksheet_range("Main")
+            .worksheet_range(main_sheet_name)
             .map_err(|_| NvmError::MiscError("Main sheet not found.".to_string()))?;
 
         let rows: Vec<_> = main_sheet.rows().collect();
@@ -76,7 +81,7 @@ impl DataSheet {
         let mut sheets: HashMap<String, Range<Data>> =
             HashMap::with_capacity(workbook.worksheets().len().saturating_sub(1));
         for (name, sheet) in workbook.worksheets() {
-            if name != "Main" {
+            if name != main_sheet_name {
                 sheets.insert(name.to_string(), sheet);
             }
         }

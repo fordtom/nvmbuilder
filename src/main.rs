@@ -47,7 +47,7 @@ fn main() -> Result<(), NvmError> {
     let args = Args::parse();
 
     let layout = layout::load_layout(&args.layout)?;
-    let data_sheet = DataSheet::new(&args.xlsx, &args.variant, args.debug)?;
+    let data_sheet = DataSheet::new(&args.xlsx, &args.variant, args.debug, &args.main_sheet)?;
 
     checksum::init_crc_algorithm(&layout.settings.crc);
 
@@ -91,7 +91,7 @@ mod tests {
             for &dbg in &debug_candidates {
                 for var in &variant_candidates {
                     let var_opt: Option<String> = var.map(|s| s.to_string());
-                    match DataSheet::new("examples/data.xlsx", &var_opt, dbg) {
+                    match DataSheet::new("examples/data.xlsx", &var_opt, dbg, "Main") {
                         Ok(ds) => {
                             ds_opt = Some(ds);
                             break;
@@ -104,7 +104,7 @@ mod tests {
                 }
             }
             let ds = ds_opt.unwrap_or_else(|| {
-                DataSheet::new("examples/data.xlsx", &None, false)
+                DataSheet::new("examples/data.xlsx", &None, false, "Main")
                     .expect("Excel open with default columns")
             });
 
@@ -126,6 +126,7 @@ mod tests {
                             byte_swap: false,
                             out: "out".to_string(),
                             offset: off,
+                            main_sheet: "Main".to_string(),
                         },
                     )
                     .expect("build_block failed");

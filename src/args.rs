@@ -39,6 +39,14 @@ pub struct Args {
     )]
     pub xlsx: String,
 
+    #[arg(
+        long,
+        value_name = "NAME",
+        default_value = "Main",
+        help = "Main sheet name in Excel"
+    )]
+    pub main_sheet: String,
+
     #[arg(short = 'v', long, value_name = "NAME", help = "Variant column to use")]
     pub variant: Option<String>,
 
