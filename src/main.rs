@@ -34,6 +34,7 @@ fn build_block(
         &layout.settings,
         args.offset,
         args.byte_swap,
+        args.record_width as usize,
     )?;
 
     let mut name_parts: Vec<String> = Vec::new();
@@ -138,6 +139,7 @@ mod tests {
                             main_sheet: "Main".to_string(),
                             prefix: "".to_string(),
                             suffix: "".to_string(),
+                            record_width: 32,
                         },
                     )
                     .expect("build_block failed");

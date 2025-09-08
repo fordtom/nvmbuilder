@@ -73,7 +73,7 @@ pub struct Args {
         help = "Optional virtual address offset (hex or dec)"
     )]
     pub offset: u32,
-
+  
     #[arg(
         long,
         value_name = "STR",
@@ -89,4 +89,13 @@ pub struct Args {
         help = "Optional suffix to append to each block name in output filename"
     )]
     pub suffix: String,
+
+    #[arg(
+        long,
+        value_name = "N",
+        default_value_t = 32u16,
+        value_parser = clap::value_parser!(u16).range(1..=64),
+        help = "Number of bytes per HEX data record (1..=64)"
+    )]
+    pub record_width: u16,
 }
