@@ -77,7 +77,11 @@ pub fn bytestream_to_hex_string(
     Ok(hex_string)
 }
 
-fn emit_hex(start_address: u32, bytestream: &[u8], record_width: usize) -> Result<String, NvmError> {
+fn emit_hex(
+    start_address: u32,
+    bytestream: &[u8],
+    record_width: usize,
+) -> Result<String, NvmError> {
     let mut records = Vec::<Record>::new();
     let mut addr = start_address;
     let mut idx = 0usize;
