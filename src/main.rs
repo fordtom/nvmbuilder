@@ -2,6 +2,7 @@ mod args;
 mod checksum;
 mod error;
 mod hex;
+mod dump;
 mod layout;
 mod schema;
 mod variants;
@@ -35,6 +36,32 @@ fn build_block(
         args.offset,
         args.byte_swap,
     )?;
+
+    if args.dump_json {
+        let dr = dump::build_dump(block, data_sheet, &layout.settings)?;
+        let mut root = serde_json::Map::new();
+        root.insert("block".to_string(), serde_json::Value::String(block_name.to_string()));
+        root.insert("values".to_string(), dr.values);
+        // enrich meta with runtime options
+        let mut meta_obj = match dr.meta {
+            serde_json::Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        };
+        meta_obj.insert("byte_swap".to_string(), serde_json::json!(args.byte_swap));
+        meta_obj.insert("offset".to_string(), serde_json::json!(args.offset));
+        meta_obj.insert(
+            "start_address_effective".to_string(),
+            serde_json::json!(block.header.start_address + args.offset),
+        );
+        root.insert("meta".to_string(), serde_json::Value::Object(meta_obj));
+
+        let dump_path = Path::new(&args.out).join(format!("{}.dump.json", block_name));
+        let json_str = serde_json::to_string_pretty(&serde_json::Value::Object(root))
+            .map_err(|e| NvmError::FileError(format!("failed to serialise dump: {}", e)))?;
+        std::fs::write(dump_path, json_str).map_err(|e| {
+            NvmError::FileError(format!("failed to write dump for block {}: {}", block_name, e))
+        })?;
+    }
 
     let out_path = Path::new(&args.out).join(format!("{}.hex", block_name));
     std::fs::write(out_path, hex_string)
@@ -127,6 +154,7 @@ mod tests {
                             out: "out".to_string(),
                             offset: off,
                             main_sheet: "Main".to_string(),
+                            dump_json: false,
                         },
                     )
                     .expect("build_block failed");

@@ -73,4 +73,10 @@ pub struct Args {
         help = "Optional virtual address offset (hex or dec)"
     )]
     pub offset: u32,
+
+    #[arg(
+        long,
+        help = "Emit a human-readable JSON dump of resolved values alongside the HEX"
+    )]
+    pub dump_json: bool,
 }
