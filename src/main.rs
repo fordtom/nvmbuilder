@@ -137,8 +137,8 @@ mod tests {
                             out: "out".to_string(),
                             offset: off,
                             main_sheet: "Main".to_string(),
-                            prefix: "".to_string(),
-                            suffix: "".to_string(),
+                            prefix: "PRE".to_string(),
+                            suffix: "SUF".to_string(),
                             record_width: 32,
                         },
                     )
