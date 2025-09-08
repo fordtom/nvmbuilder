@@ -36,7 +36,16 @@ fn build_block(
         args.byte_swap,
     )?;
 
-    let out_path = Path::new(&args.out).join(format!("{}.hex", block_name));
+    let mut name_parts: Vec<String> = Vec::new();
+    if !args.prefix.is_empty() {
+        name_parts.push(args.prefix.clone());
+    }
+    name_parts.push(block_name.to_string());
+    if !args.suffix.is_empty() {
+        name_parts.push(args.suffix.clone());
+    }
+    let out_filename = format!("{}.hex", name_parts.join("_"));
+    let out_path = Path::new(&args.out).join(out_filename);
     std::fs::write(out_path, hex_string)
         .map_err(|e| NvmError::FileError(format!("failed to write block {}: {}", block_name, e)))?;
 
@@ -127,6 +136,8 @@ mod tests {
                             out: "out".to_string(),
                             offset: off,
                             main_sheet: "Main".to_string(),
+                            prefix: "".to_string(),
+                            suffix: "".to_string(),
                         },
                     )
                     .expect("build_block failed");
