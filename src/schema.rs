@@ -206,6 +206,37 @@ macro_rules! impl_endian_bytes {
 }
 impl_endian_bytes!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
 
+trait LossyFromDataValue: Sized {
+    fn lossy_from(value: &DataValue) -> Result<Self, NvmError>;
+}
+
+macro_rules! impl_lossy_from_data_value {
+    ($($t:ty),* $(,)?) => {$({
+        impl LossyFromDataValue for $t {
+            fn lossy_from(value: &DataValue) -> Result<Self, NvmError> {
+                match value {
+                    DataValue::U64(v) => Ok(*v as $t),
+                    DataValue::I64(v) => Ok(*v as $t),
+                    DataValue::F64(v) => Ok(*v as $t),
+                    DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                        "Cannot convert string to scalar type.".to_string(),
+                    )),
+                }
+            }
+        }
+    })*};
+}
+
+impl_lossy_from_data_value!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
+
+fn convert_value_to_bytes<T>(value: &DataValue, e: &Endianness, strict: bool) -> Result<Vec<u8>, NvmError>
+where
+    T: EndianBytes + TryFrom<&DataValue, Error = NvmError> + LossyFromDataValue,
+{
+    let out: T = if strict { T::try_from(value)? } else { T::lossy_from(value)? };
+    Ok(out.to_endian_bytes(e))
+}
+
 // Strict TryFrom implementations with bound and finiteness checks
 impl TryFrom<&DataValue> for u8 {
     type Error = NvmError;
