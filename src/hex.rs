@@ -17,6 +17,7 @@ pub fn bytestream_to_hex_string(
     offset: u32,
     byte_swap: bool,
     record_width: usize,
+    pad_to_end: bool,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -70,8 +71,15 @@ pub fn bytestream_to_hex_string(
         ));
     }
 
-    bytestream.resize(header.length as usize, header.padding);
-    bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
+    let min_len = (crc_offset + 4) as usize;
+    let target_len = if pad_to_end {
+        header.length as usize
+    } else {
+        min_len
+    };
+    bytestream.resize(target_len, header.padding);
+    bytestream[crc_offset as usize..(crc_offset + 4) as usize]
+        .copy_from_slice(&crc_bytes);
 
     let hex_string = emit_hex(header.start_address + offset, bytestream, record_width)?;
     Ok(hex_string)
@@ -113,4 +121,75 @@ fn emit_hex(
         NvmError::HexOutputError("Failed to create object file representation.".to_string())
     })?;
     Ok(obj)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::schema::{CrcData, CrcLocation, Endianness, Header, Settings};
+
+    fn sample_settings() -> Settings {
+        Settings {
+            endianness: Endianness::Little,
+            crc: CrcData {
+                polynomial: 0x04C11DB7,
+                start: 0xFFFF_FFFF,
+                xor_out: 0xFFFF_FFFF,
+                ref_in: true,
+                ref_out: true,
+            },
+        }
+    }
+
+    fn sample_header(len: u32) -> Header {
+        Header {
+            start_address: 0,
+            length: len,
+            crc_location: CrcLocation::Keyword("end".to_string()),
+            padding: 0xFF,
+        }
+    }
+
+    #[test]
+    fn pad_to_end_false_resizes_to_crc_end_only() {
+        let settings = sample_settings();
+        crate::checksum::init_crc_algorithm(&settings.crc);
+        let header = sample_header(16);
+
+        let mut bytestream = vec![1u8, 2, 3, 4];
+        let _hex = bytestream_to_hex_string(
+            &mut bytestream,
+            &header,
+            &settings,
+            0,
+            false,
+            16,
+            false,
+        )
+        .expect("hex generation failed");
+
+        // 4 bytes payload + 4 bytes CRC
+        assert_eq!(bytestream.len(), 8);
+    }
+
+    #[test]
+    fn pad_to_end_true_resizes_to_full_block() {
+        let settings = sample_settings();
+        crate::checksum::init_crc_algorithm(&settings.crc);
+        let header = sample_header(32);
+
+        let mut bytestream = vec![1u8, 2, 3, 4];
+        let _hex = bytestream_to_hex_string(
+            &mut bytestream,
+            &header,
+            &settings,
+            0,
+            false,
+            16,
+            true,
+        )
+        .expect("hex generation failed");
+
+        assert_eq!(bytestream.len(), header.length as usize);
+    }
 }
