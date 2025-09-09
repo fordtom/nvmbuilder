@@ -98,4 +98,7 @@ pub struct Args {
         help = "Number of bytes per HEX data record (1..=64)"
     )]
     pub record_width: u16,
+
+    #[arg(long, help = "Pad output HEX to the full block length")]
+    pub pad_to_end: bool,
 }
