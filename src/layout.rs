@@ -14,15 +14,16 @@ impl LeafEntry {
         data_sheet: &DataSheet,
         endianness: &Endianness,
         padding: &u8,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match self.size {
-            None => self.emit_bytes_single(data_sheet, endianness),
+            None => self.emit_bytes_single(data_sheet, endianness, strict),
             Some(SizeSource::OneD(size)) => {
-                let bytes = self.emit_bytes_1d(data_sheet, endianness, size, padding)?;
+                let bytes = self.emit_bytes_1d(data_sheet, endianness, size, padding, strict)?;
                 Ok(bytes)
             }
             Some(SizeSource::TwoD(size)) => {
-                let bytes = self.emit_bytes_2d(data_sheet, endianness, size, padding)?;
+                let bytes = self.emit_bytes_2d(data_sheet, endianness, size, padding, strict)?;
                 Ok(bytes)
             }
         }
@@ -32,13 +33,14 @@ impl LeafEntry {
         &self,
         data_sheet: &DataSheet,
         endianness: &Endianness,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match &self.source {
             EntrySource::Name(name) => {
                 let value = data_sheet.retrieve_single_value(name)?;
-                value.to_bytes(self.scalar_type, endianness)
+                value.to_bytes(self.scalar_type, endianness, strict)
             }
-            EntrySource::Value(ValueSource::Single(v)) => v.to_bytes(self.scalar_type, endianness),
+            EntrySource::Value(ValueSource::Single(v)) => v.to_bytes(self.scalar_type, endianness, strict),
             EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
                 "Single value expected for scalar type.".to_string(),
             )),
@@ -51,6 +53,7 @@ impl LeafEntry {
         endianness: &Endianness,
         size: usize,
         padding: &u8,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
 
@@ -66,13 +69,13 @@ impl LeafEntry {
                 }
                 ValueSource::Array(v) => {
                     for v in v {
-                        out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                        out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
                     }
                 }
             },
             EntrySource::Value(ValueSource::Array(v)) => {
                 for v in v {
-                    out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                    out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
                 }
             }
             EntrySource::Value(ValueSource::Single(v)) => {
@@ -102,6 +105,7 @@ impl LeafEntry {
         endianness: &Endianness,
         size: [usize; 2],
         padding: &u8,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match &self.source {
             EntrySource::Name(name) => {
@@ -127,7 +131,7 @@ impl LeafEntry {
                 let mut out = Vec::with_capacity(total_bytes);
                 for row in data {
                     for v in row {
-                        out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                        out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
                     }
                 }
 
@@ -149,6 +153,7 @@ impl Block {
         &self,
         data_sheet: &DataSheet,
         settings: &Settings,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         let mut buffer = Vec::with_capacity(self.header.length as usize);
         let mut offset = 0;
@@ -160,6 +165,7 @@ impl Block {
             &mut offset,
             &settings.endianness,
             &self.header.padding,
+            strict,
         )?;
 
         if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
@@ -180,6 +186,7 @@ impl Block {
         offset: &mut usize,
         endianness: &Endianness,
         padding: &u8,
+        strict: bool,
     ) -> Result<(), NvmError> {
         match table {
             Entry::Leaf(leaf) => {
@@ -189,14 +196,14 @@ impl Block {
                     *offset += 1;
                 }
 
-                let bytes = leaf.emit_bytes(data_sheet, endianness, padding)?;
+                let bytes = leaf.emit_bytes(data_sheet, endianness, padding, strict)?;
                 *offset += bytes.len();
                 buffer.extend(bytes);
             }
             Entry::Branch(branch) => {
                 for (_, v) in branch.iter() {
                     Self::build_bytestream_inner(
-                        v, data_sheet, buffer, offset, endianness, padding,
+                        v, data_sheet, buffer, offset, endianness, padding, strict,
                     )?;
                 }
             }

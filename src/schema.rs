@@ -161,18 +161,19 @@ impl DataValue {
         &self,
         scalar_type: ScalarType,
         endianness: &Endianness,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match scalar_type {
-            ScalarType::U8 => Ok(u8::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I8 => Ok(i8::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::U16 => Ok(u16::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I16 => Ok(i16::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::U32 => Ok(u32::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I32 => Ok(i32::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::U64 => Ok(u64::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I64 => Ok(i64::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::F32 => Ok(f32::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::F64 => Ok(f64::try_from(self)?.to_endian_bytes(endianness)),
+            ScalarType::U8 => Ok(self.to_u8(strict)?.to_endian_bytes(endianness)),
+            ScalarType::I8 => Ok(self.to_i8(strict)?.to_endian_bytes(endianness)),
+            ScalarType::U16 => Ok(self.to_u16(strict)?.to_endian_bytes(endianness)),
+            ScalarType::I16 => Ok(self.to_i16(strict)?.to_endian_bytes(endianness)),
+            ScalarType::U32 => Ok(self.to_u32(strict)?.to_endian_bytes(endianness)),
+            ScalarType::I32 => Ok(self.to_i32(strict)?.to_endian_bytes(endianness)),
+            ScalarType::U64 => Ok(self.to_u64(strict)?.to_endian_bytes(endianness)),
+            ScalarType::I64 => Ok(self.to_i64(strict)?.to_endian_bytes(endianness)),
+            ScalarType::F32 => Ok(self.to_f32(strict)?.to_endian_bytes(endianness)),
+            ScalarType::F64 => Ok(self.to_f64(strict)?.to_endian_bytes(endianness)),
         }
     }
 
@@ -183,6 +184,309 @@ impl DataValue {
                 "String expected for string type.".to_string(),
             )),
         }
+    }
+
+    fn to_u8(&self, strict: bool) -> Result<u8, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > u8::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for u8", v),
+                    ));
+                }
+                Ok(*v as u8)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v < 0 || *v > u8::MAX as i64) {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for u8", v),
+                    ));
+                }
+                Ok(*v as u8)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, 0.0, u8::MAX as f64, "u8")?;
+                }
+                Ok(*f as u8)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_u16(&self, strict: bool) -> Result<u16, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > u16::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for u16", v),
+                    ));
+                }
+                Ok(*v as u16)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v < 0 || *v > u16::MAX as i64) {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for u16", v),
+                    ));
+                }
+                Ok(*v as u16)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, 0.0, u16::MAX as f64, "u16")?;
+                }
+                Ok(*f as u16)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_u32(&self, strict: bool) -> Result<u32, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > u32::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for u32", v),
+                    ));
+                }
+                Ok(*v as u32)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v < 0 || *v > u32::MAX as i64) {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for u32", v),
+                    ));
+                }
+                Ok(*v as u32)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, 0.0, u32::MAX as f64, "u32")?;
+                }
+                Ok(*f as u32)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_u64(&self, strict: bool) -> Result<u64, NvmError> {
+        match self {
+            DataValue::U64(v) => Ok(*v),
+            DataValue::I64(v) => {
+                if strict && *v < 0 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for u64", v),
+                    ));
+                }
+                Ok(*v as u64)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, 0.0, u64::MAX as f64, "u64")?;
+                }
+                Ok(*f as u64)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_i8(&self, strict: bool) -> Result<i8, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > i8::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for i8", v),
+                    ));
+                }
+                Ok(*v as i8)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v < i8::MIN as i64 || *v > i8::MAX as i64) {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for i8", v),
+                    ));
+                }
+                Ok(*v as i8)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, i8::MIN as f64, i8::MAX as f64, "i8")?;
+                }
+                Ok(*f as i8)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_i16(&self, strict: bool) -> Result<i16, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > i16::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for i16", v),
+                    ));
+                }
+                Ok(*v as i16)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v < i16::MIN as i64 || *v > i16::MAX as i64) {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for i16", v),
+                    ));
+                }
+                Ok(*v as i16)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, i16::MIN as f64, i16::MAX as f64, "i16")?;
+                }
+                Ok(*f as i16)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_i32(&self, strict: bool) -> Result<i32, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > i32::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for i32", v),
+                    ));
+                }
+                Ok(*v as i32)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v < i32::MIN as i64 || *v > i32::MAX as i64) {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for i32", v),
+                    ));
+                }
+                Ok(*v as i32)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, i32::MIN as f64, i32::MAX as f64, "i32")?;
+                }
+                Ok(*f as i32)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_i64(&self, strict: bool) -> Result<i64, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && *v > i64::MAX as u64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for i64", v),
+                    ));
+                }
+                Ok(*v as i64)
+            }
+            DataValue::I64(v) => Ok(*v),
+            DataValue::F64(f) => {
+                if strict {
+                    Self::ensure_finite_integer_in_range(*f, i64::MIN as f64, i64::MAX as f64, "i64")?;
+                }
+                Ok(*f as i64)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_f32(&self, strict: bool) -> Result<f32, NvmError> {
+        match self {
+            DataValue::U64(v) => {
+                if strict && (*v as f64) > f32::MAX as f64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} too large for f32", v),
+                    ));
+                }
+                Ok(*v as f32)
+            }
+            DataValue::I64(v) => {
+                if strict && (*v as f64) < f32::MIN as f64 || (*v as f64) > f32::MAX as f64 {
+                    return Err(NvmError::DataValueExportFailed(
+                        format!("value {} out of range for f32", v),
+                    ));
+                }
+                Ok(*v as f32)
+            }
+            DataValue::F64(f) => {
+                if strict {
+                    if !f.is_finite() {
+                        return Err(NvmError::DataValueExportFailed(
+                            "non-finite f64 cannot convert to f32".to_string(),
+                        ));
+                    }
+                    if *f < f32::MIN as f64 || *f > f32::MAX as f64 {
+                        return Err(NvmError::DataValueExportFailed(
+                            format!("value {} out of range for f32", f),
+                        ));
+                    }
+                }
+                Ok(*f as f32)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn to_f64(&self, strict: bool) -> Result<f64, NvmError> {
+        match self {
+            DataValue::U64(v) => Ok(*v as f64),
+            DataValue::I64(v) => Ok(*v as f64),
+            DataValue::F64(f) => {
+                if strict && !f.is_finite() {
+                    return Err(NvmError::DataValueExportFailed(
+                        "non-finite f64 not allowed".to_string(),
+                    ));
+                }
+                Ok(*f)
+            }
+            DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                "Cannot convert string to scalar type.".to_string(),
+            )),
+        }
+    }
+
+    fn ensure_finite_integer_in_range(value: f64, min: f64, max: f64, target: &str) -> Result<(), NvmError> {
+        if !value.is_finite() {
+            return Err(NvmError::DataValueExportFailed(
+                format!("non-finite value cannot convert to {}", target),
+            ));
+        }
+        if value < min || value > max {
+            return Err(NvmError::DataValueExportFailed(
+                format!("value {} out of range for {}", value, target),
+            ));
+        }
+        // Ensure no fractional part
+        if (value.fract()).abs() > 0.0 {
+            return Err(NvmError::DataValueExportFailed(
+                format!("value {} is not an integer for {}", value, target),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -204,8 +508,10 @@ macro_rules! impl_endian_bytes {
 }
 impl_endian_bytes!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
 
+// Non-strict fallback conversions still use TryFrom<&DataValue> where we allow casting.
+// We keep these for the non-strict path in to_bytes.
 macro_rules! impl_try_from_data_value {
-    ($($t:ty),* $(,)?) => {$(
+    ($($t:ty),* $(,)?) => {$({
         impl TryFrom<&DataValue> for $t {
             type Error = NvmError;
             fn try_from(value: &DataValue) -> Result<Self, NvmError> {
@@ -213,14 +519,13 @@ macro_rules! impl_try_from_data_value {
                     DataValue::U64(val) => Ok(*val as $t),
                     DataValue::I64(val) => Ok(*val as $t),
                     DataValue::F64(val) => Ok(*val as $t),
-                    DataValue::Str(_) => {
-                        return Err(NvmError::DataValueExportFailed(
-                            "Cannot convert string to scalar type.".to_string(),
-                        ));
-                    }
+                    DataValue::Str(_) => Err(NvmError::DataValueExportFailed(
+                        "Cannot convert string to scalar type.".to_string(),
+                    )),
                 }
             }
         }
-    )* }; }
+    })*};
+}
 
 impl_try_from_data_value!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);

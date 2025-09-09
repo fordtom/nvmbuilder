@@ -26,7 +26,7 @@ fn build_block(
         .get(block_name)
         .ok_or(NvmError::BlockNotFound(block_name.to_string()))?;
 
-    let mut bytestream = block.build_bytestream(data_sheet, &layout.settings)?;
+    let mut bytestream = block.build_bytestream(data_sheet, &layout.settings, args.strict)?;
 
     let hex_string = hex::bytestream_to_hex_string(
         &mut bytestream,

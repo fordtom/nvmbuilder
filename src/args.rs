@@ -101,4 +101,7 @@ pub struct Args {
 
     #[arg(long, help = "Pad output HEX to the full block length")]
     pub pad_to_end: bool,
+
+    #[arg(long, help = "Enable strict type checking; fail on lossy conversions")]
+    pub strict: bool,
 }

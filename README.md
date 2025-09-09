@@ -7,7 +7,7 @@ Build flash blocks from a layout file (TOML/YAML/JSON) and an Excel workbook, th
 ```bash
 nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> \
   [-v <VARIANT>] [-d] [-o <DIR>] [--offset <OFFSET>] \
-  [--prefix <STR>] [--suffix <STR>] [--record-width N] [--pad-to-end]
+  [--prefix <STR>] [--suffix <STR>] [--record-width N] [--pad-to-end] [--strict]
 
 ```
 
@@ -21,7 +21,8 @@ nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> \
 - **--prefix STR**: Optional string prepended to block name in output filename
 - **--suffix STR**: Optional string appended to block name in output filename
 - **--record-width N**: number of bytes per HEX data record (default: 32; range 1..=64)
- - **--pad-to-end**: pad the output HEX to the full block length (default: off)
+- **--pad-to-end**: pad the output HEX to the full block length (default: off)
+- **--strict**: enable strict type checking; fail on lossy conversions
 
 The order of preference for value selection is debug -> variant -> default. Ensure you always have default filled. Strings in the excel can point to different sheets as a way of providing arrays.
 
