@@ -1,4 +1,5 @@
 {
+    "offset": 0,
     "settings": {
         "endianness": "little",
         "crc": {

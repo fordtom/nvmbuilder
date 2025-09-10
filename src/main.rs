@@ -32,7 +32,7 @@ fn build_block(
         &mut bytestream,
         &block.header,
         &layout.settings,
-        args.offset,
+        layout.offset,
         args.byte_swap,
         args.record_width as usize,
         args.pad_to_end,
@@ -56,6 +56,9 @@ fn build_block(
 
 fn main() -> Result<(), NvmError> {
     let args = Args::parse();
+
+    // Provide clear error if legacy --offset is used
+    args.validate_legacy_flags()?;
 
     let layout = layout::load_layout(&args.layout)?;
     let data_sheet = DataSheet::new(&args.xlsx, &args.variant, args.debug, &args.main_sheet)?;
@@ -91,7 +94,7 @@ mod tests {
         fs::create_dir_all("out").unwrap();
 
         for layout_path in layouts {
-            let cfg = layout::load_layout(layout_path).expect("failed to parse layout");
+            let mut cfg = layout::load_layout(layout_path).expect("failed to parse layout");
             checksum::init_crc_algorithm(&cfg.settings.crc);
 
             // Try a few option combinations; degrade gracefully if a variant column is missing
@@ -124,6 +127,7 @@ mod tests {
                     continue;
                 }
                 for &off in &offsets {
+                    cfg.offset = off;
                     build_block(
                         &cfg,
                         &ds,
@@ -136,8 +140,8 @@ mod tests {
                             debug: false,
                             byte_swap: false,
                             out: "out".to_string(),
-                            offset: off,
                             main_sheet: "Main".to_string(),
+                            legacy_offset: None,
                             prefix: "PRE".to_string(),
                             suffix: "SUF".to_string(),
                             record_width: 32,
@@ -145,9 +149,31 @@ mod tests {
                         },
                     )
                     .expect("build_block failed");
-                    assert!(Path::new("out").join(format!("{}.hex", blk)).exists());
+                    let expected = format!("{}_{}_{}.hex", "PRE", blk, "SUF");
+                    assert!(Path::new("out").join(expected).exists());
                 }
             }
         }
+    }
+
+    #[test]
+    fn legacy_offset_flag_is_rejected() {
+        let args = Args {
+            blocks: vec!["block".to_string()],
+            layout: "examples/block.toml".to_string(),
+            xlsx: "examples/data.xlsx".to_string(),
+            variant: None,
+            debug: false,
+            byte_swap: false,
+            out: "out".to_string(),
+            main_sheet: "Main".to_string(),
+            legacy_offset: Some("0x1000".to_string()),
+            prefix: "".to_string(),
+            suffix: "".to_string(),
+            record_width: 32,
+            pad_to_end: false,
+        };
+        let err = args.validate_legacy_flags().unwrap_err().to_string();
+        assert!(err.contains("--offset flag removed"));
     }
 }

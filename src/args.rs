@@ -1,18 +1,6 @@
 use crate::error::*;
 use clap::Parser;
 
-fn parse_offset(offset: &str) -> Result<u32, NvmError> {
-    let s = offset.trim();
-    let (radix, digits) = if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        (16, hex)
-    } else {
-        (10, s)
-    };
-
-    u32::from_str_radix(&digits.replace("_", ""), radix)
-        .map_err(|_| NvmError::MiscError(format!("invalid offset provided: {}", offset)))
-}
-
 // Eventually these should be split per section once modules expand and become more complex
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Build flash blocks from layout + Excel data")]
@@ -66,14 +54,13 @@ pub struct Args {
     pub out: String,
 
     #[arg(
-        long,
+        long = "offset",
         value_name = "OFFSET",
-        default_value_t = 0u32,
-        value_parser = parse_offset,
-        help = "Optional virtual address offset (hex or dec)"
+        hide = true,
+        help = "REMOVED: Use file-level 'offset = <VALUE>' in layout file"
     )]
-    pub offset: u32,
-  
+    pub legacy_offset: Option<String>,
+
     #[arg(
         long,
         value_name = "STR",
@@ -101,4 +88,16 @@ pub struct Args {
 
     #[arg(long, help = "Pad output HEX to the full block length")]
     pub pad_to_end: bool,
+}
+
+impl Args {
+    pub fn validate_legacy_flags(&self) -> Result<(), NvmError> {
+        if let Some(val) = &self.legacy_offset {
+            return Err(NvmError::MiscError(format!(
+                "--offset flag removed. Add 'offset = {}' to your layout file instead.",
+                val
+            )));
+        }
+        Ok(())
+    }
 }

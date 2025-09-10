@@ -6,7 +6,7 @@ Build flash blocks from a layout file (TOML/YAML/JSON) and an Excel workbook, th
 
 ```bash
 nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> \
-  [-v <VARIANT>] [-d] [-o <DIR>] [--offset <OFFSET>] \
+  [-v <VARIANT>] [-d] [-o <DIR>] \
   [--prefix <STR>] [--suffix <STR>] [--record-width N] [--pad-to-end]
 
 ```
@@ -17,7 +17,7 @@ nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> \
 - **-v, --variant NAME**: column in the workbook to use for variants (optional)
 - **-d, --debug**: prefer the Debug column when present (optional)
 - **-o, --out DIR**: output directory for `.hex` files (default: `out`)
-- **--offset OFFSET**: Optional u32 virtual address offset (hex or dec)
+- Offset is now configured in the layout file as a top-level `offset` field (hex like `0x8000` or decimal). The CLI `--offset` flag has been removed.
 - **--prefix STR**: Optional string prepended to block name in output filename
 - **--suffix STR**: Optional string appended to block name in output filename
 - **--record-width N**: number of bytes per HEX data record (default: 32; range 1..=64)
@@ -37,7 +37,7 @@ nvmbuilder block -l examples/block.toml -x examples/data.xlsx -o out
 nvmbuilder blockA blockB -l examples/block.toml -x examples/data.xlsx -v VarA -d -o out
 
 # Using YAML or JSON layouts
-nvmbuilder block -l examples/block.yaml -x examples/data.xlsx -o out --offset 0x10000
+nvmbuilder block -l examples/block.yaml -x examples/data.xlsx -o out
 nvmbuilder block -l examples/block.json -x examples/data.xlsx -o out
 ```
 
