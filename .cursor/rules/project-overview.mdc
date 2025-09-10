@@ -1,4 +1,0 @@
----
-alwaysApply: true
----
-The goal nvmbuilder is to make an executable capable of parsing both a toml/yaml/json file and excel spreadsheet, combining the data together to generate a bytestream and then write an intel hex file that can be flashed to embedded microcontrollers. The layout, adresses, endianness and other settings are defined in the toml file, and the excel stores numerical values and platform variations for the data structure that we are assembling.
