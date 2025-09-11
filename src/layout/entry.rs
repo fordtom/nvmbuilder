@@ -1,7 +1,7 @@
 use super::settings::Endianness;
 use super::value::ValueSource;
 use crate::error::*;
-use crate::variants::DataSheet;
+use crate::variant::DataSheet;
 use serde::Deserialize;
 
 /// Leaf entry representing an item to add to the flash block.

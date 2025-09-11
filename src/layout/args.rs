@@ -1,0 +1,30 @@
+use crate::error::NvmError;
+use clap::Parser;
+
+#[derive(Debug, Clone)]
+pub struct BlockNames {
+    pub name: String,
+    pub file: String,
+}
+
+pub fn parse_block_arg(block: &str) -> Result<BlockNames, NvmError> {
+    let parts: Vec<&str> = block.split('@').collect();
+
+    if parts.len() != 2 {
+        Err(NvmError::MiscError(format!(
+            "Failed to unpack block {}",
+            block
+        )))
+    } else {
+        Ok(BlockNames {
+            name: parts[0].to_string(),
+            file: parts[1].to_string(),
+        })
+    }
+}
+
+#[derive(Parser, Debug)]
+pub struct LayoutArgs {
+    #[arg(value_name = "BLOCK", num_args = 1.., value_parser = parse_block_arg, help = "List of blocks to build, in format blockname@filename")]
+    pub blocks: Vec<BlockNames>,
+}
