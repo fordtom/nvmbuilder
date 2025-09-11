@@ -32,7 +32,6 @@ fn build_block(
         &mut bytestream,
         &block.header,
         &layout.settings,
-        args.offset,
         args.byte_swap,
         args.record_width as usize,
         args.pad_to_end,
@@ -91,7 +90,7 @@ mod tests {
         fs::create_dir_all("out").unwrap();
 
         for layout_path in layouts {
-            let cfg = layout::load_layout(layout_path).expect("failed to parse layout");
+            let mut cfg = layout::load_layout(layout_path).expect("failed to parse layout");
             checksum::init_crc_algorithm(&cfg.settings.crc);
 
             // Try a few option combinations; degrade gracefully if a variant column is missing
@@ -124,6 +123,7 @@ mod tests {
                     continue;
                 }
                 for &off in &offsets {
+                    cfg.settings.virtual_offset = off;
                     build_block(
                         &cfg,
                         &ds,
@@ -136,7 +136,6 @@ mod tests {
                             debug: false,
                             byte_swap: false,
                             out: "out".to_string(),
-                            offset: off,
                             main_sheet: "Main".to_string(),
                             prefix: "PRE".to_string(),
                             suffix: "SUF".to_string(),
@@ -145,7 +144,8 @@ mod tests {
                         },
                     )
                     .expect("build_block failed");
-                    assert!(Path::new("out").join(format!("{}.hex", blk)).exists());
+                    let expected = format!("{}_{}_{}.hex", "PRE", blk, "SUF");
+                    assert!(Path::new("out").join(expected).exists());
                 }
             }
         }

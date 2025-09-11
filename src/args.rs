@@ -1,17 +1,4 @@
-use crate::error::*;
 use clap::Parser;
-
-fn parse_offset(offset: &str) -> Result<u32, NvmError> {
-    let s = offset.trim();
-    let (radix, digits) = if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        (16, hex)
-    } else {
-        (10, s)
-    };
-
-    u32::from_str_radix(&digits.replace("_", ""), radix)
-        .map_err(|_| NvmError::MiscError(format!("invalid offset provided: {}", offset)))
-}
 
 // Eventually these should be split per section once modules expand and become more complex
 #[derive(Parser, Debug)]
@@ -65,15 +52,6 @@ pub struct Args {
     )]
     pub out: String,
 
-    #[arg(
-        long,
-        value_name = "OFFSET",
-        default_value_t = 0u32,
-        value_parser = parse_offset,
-        help = "Optional virtual address offset (hex or dec)"
-    )]
-    pub offset: u32,
-  
     #[arg(
         long,
         value_name = "STR",

@@ -10,10 +10,16 @@ pub struct Config {
     pub blocks: IndexMap<String, Block>,
 }
 
+fn default_offset() -> u32 {
+    0
+}
+
 /// High-level settings.
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub endianness: Endianness,
+    #[serde(default = "default_offset")]
+    pub virtual_offset: u32,
     pub crc: CrcData,
 }
 

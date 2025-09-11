@@ -1,6 +1,7 @@
 {
     "settings": {
         "endianness": "little",
+        "virtual_offset": 0,
         "crc": {
             "polynomial": 79764919,
             "start": 4294967295,

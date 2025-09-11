@@ -1,5 +1,6 @@
 settings:
   endianness: "little"
+  virtual_offset: 0x0
   crc:
     polynomial: 0x04C11DB7
     start: 0xFFFFFFFF
