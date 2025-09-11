@@ -1,7 +1,62 @@
+use super::settings::Endianness;
+use super::value::ValueSource;
 use crate::error::*;
-use crate::schema::*;
 use crate::variants::DataSheet;
-use std::path::Path;
+use serde::Deserialize;
+
+/// Leaf entry representing an item to add to the flash block.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LeafEntry {
+    #[serde(rename = "type")]
+    pub scalar_type: ScalarType,
+    #[serde(default)]
+    pub size: Option<SizeSource>,
+    #[serde(flatten)]
+    pub source: EntrySource,
+}
+
+/// Scalar type enum derived from 'type' string in leaf entries.
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum ScalarType {
+    #[serde(rename = "u8")]
+    U8,
+    #[serde(rename = "u16")]
+    U16,
+    #[serde(rename = "u32")]
+    U32,
+    #[serde(rename = "u64")]
+    U64,
+    #[serde(rename = "i8")]
+    I8,
+    #[serde(rename = "i16")]
+    I16,
+    #[serde(rename = "i32")]
+    I32,
+    #[serde(rename = "i64")]
+    I64,
+    #[serde(rename = "f32")]
+    F32,
+    #[serde(rename = "f64")]
+    F64,
+}
+
+/// Size source enum.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum SizeSource {
+    OneD(usize),
+    TwoD([usize; 2]),
+}
+
+/// Mutually exclusive source enum.
+#[derive(Debug, Deserialize)]
+pub enum EntrySource {
+    #[serde(rename = "name")]
+    Name(String),
+    #[serde(rename = "value")]
+    Value(ValueSource),
+}
 
 impl LeafEntry {
     /// Returns the alignment of the leaf entry.
@@ -144,89 +199,14 @@ impl LeafEntry {
     }
 }
 
-impl Block {
-    pub fn build_bytestream(
-        &self,
-        data_sheet: &DataSheet,
-        settings: &Settings,
-    ) -> Result<Vec<u8>, NvmError> {
-        let mut buffer = Vec::with_capacity(self.header.length as usize);
-        let mut offset = 0;
-
-        Self::build_bytestream_inner(
-            &self.data,
-            data_sheet,
-            &mut buffer,
-            &mut offset,
-            &settings.endianness,
-            &self.header.padding,
-        )?;
-
-        if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
-            // Padding out to the 4 byte boundary for appended/prepended CRC32
-            while offset % 4 != 0 {
-                buffer.push(self.header.padding);
-                offset += 1;
-            }
+impl ScalarType {
+    /// Returns the size of the scalar type in bytes.
+    pub fn size_bytes(&self) -> usize {
+        match self {
+            ScalarType::U8 | ScalarType::I8 => 1,
+            ScalarType::U16 | ScalarType::I16 => 2,
+            ScalarType::U32 | ScalarType::I32 | ScalarType::F32 => 4,
+            ScalarType::U64 | ScalarType::I64 | ScalarType::F64 => 8,
         }
-
-        Ok(buffer)
     }
-
-    fn build_bytestream_inner(
-        table: &Entry,
-        data_sheet: &DataSheet,
-        buffer: &mut Vec<u8>,
-        offset: &mut usize,
-        endianness: &Endianness,
-        padding: &u8,
-    ) -> Result<(), NvmError> {
-        match table {
-            Entry::Leaf(leaf) => {
-                let alignment = leaf.get_alignment();
-                while *offset % alignment != 0 {
-                    buffer.push(*padding);
-                    *offset += 1;
-                }
-
-                let bytes = leaf.emit_bytes(data_sheet, endianness, padding)?;
-                *offset += bytes.len();
-                buffer.extend(bytes);
-            }
-            Entry::Branch(branch) => {
-                for (_, v) in branch.iter() {
-                    Self::build_bytestream_inner(
-                        v, data_sheet, buffer, offset, endianness, padding,
-                    )?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-pub fn load_layout(filename: &str) -> Result<Config, NvmError> {
-    let text = std::fs::read_to_string(filename)
-        .map_err(|_| NvmError::FileError(format!("failed to open file: {}", filename)))?;
-
-    let ext = Path::new(filename)
-        .extension()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_ascii_lowercase())
-        .unwrap_or_default();
-
-    let cfg: Config = match ext.as_str() {
-        "toml" => toml::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
-        })?,
-        "yaml" | "yml" => serde_yaml::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
-        })?,
-        "json" => serde_json::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
-        })?,
-        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
-    };
-
-    Ok(cfg)
 }

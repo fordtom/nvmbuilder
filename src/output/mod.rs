@@ -1,6 +1,8 @@
-use crate::checksum;
+pub mod checksum;
+
 use crate::error::*;
-use crate::schema::*;
+use crate::layout::header::{CrcLocation, Header};
+use crate::layout::settings::{Endianness, Settings};
 
 use ihex::{Record, create_object_file_representation};
 
@@ -128,7 +130,11 @@ fn emit_hex(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::{CrcData, CrcLocation, Endianness, Header, Settings};
+    use crate::layout::header::CrcLocation;
+    use crate::layout::header::Header;
+    use crate::layout::settings::CrcData;
+    use crate::layout::settings::Endianness;
+    use crate::layout::settings::Settings;
 
     fn sample_settings() -> Settings {
         Settings {
@@ -156,7 +162,7 @@ mod tests {
     #[test]
     fn pad_to_end_false_resizes_to_crc_end_only() {
         let settings = sample_settings();
-        crate::checksum::init_crc_algorithm(&settings.crc);
+        checksum::init_crc_algorithm(&settings.crc);
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
@@ -170,7 +176,7 @@ mod tests {
     #[test]
     fn pad_to_end_true_resizes_to_full_block() {
         let settings = sample_settings();
-        crate::checksum::init_crc_algorithm(&settings.crc);
+        checksum::init_crc_algorithm(&settings.crc);
         let header = sample_header(32);
 
         let mut bytestream = vec![1u8, 2, 3, 4];

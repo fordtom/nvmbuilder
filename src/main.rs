@@ -1,9 +1,7 @@
 mod args;
-mod checksum;
 mod error;
-mod hex;
 mod layout;
-mod schema;
+mod output;
 mod variants;
 
 use clap::Parser;
@@ -12,7 +10,7 @@ use std::path::Path;
 
 use args::Args;
 use error::*;
-use schema::*;
+use layout::block::Config;
 use variants::DataSheet;
 
 fn build_block(
@@ -28,7 +26,7 @@ fn build_block(
 
     let mut bytestream = block.build_bytestream(data_sheet, &layout.settings)?;
 
-    let hex_string = hex::bytestream_to_hex_string(
+    let hex_string = output::bytestream_to_hex_string(
         &mut bytestream,
         &block.header,
         &layout.settings,
@@ -59,7 +57,7 @@ fn main() -> Result<(), NvmError> {
     let layout = layout::load_layout(&args.layout)?;
     let data_sheet = DataSheet::new(&args.xlsx, &args.variant, args.debug, &args.main_sheet)?;
 
-    checksum::init_crc_algorithm(&layout.settings.crc);
+    output::checksum::init_crc_algorithm(&layout.settings.crc);
 
     std::fs::create_dir_all(&args.out)
         .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
@@ -91,7 +89,7 @@ mod tests {
 
         for layout_path in layouts {
             let mut cfg = layout::load_layout(layout_path).expect("failed to parse layout");
-            checksum::init_crc_algorithm(&cfg.settings.crc);
+            output::checksum::init_crc_algorithm(&cfg.settings.crc);
 
             // Try a few option combinations; degrade gracefully if a variant column is missing
             let variant_candidates: [Option<&str>; 2] = [None, Some("VarA")];
