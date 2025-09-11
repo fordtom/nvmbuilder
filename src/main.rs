@@ -57,9 +57,6 @@ fn build_block(
 fn main() -> Result<(), NvmError> {
     let args = Args::parse();
 
-    // Provide clear error if legacy --offset is used
-    args.validate_legacy_flags()?;
-
     let layout = layout::load_layout(&args.layout)?;
     let data_sheet = DataSheet::new(&args.xlsx, &args.variant, args.debug, &args.main_sheet)?;
 
@@ -141,7 +138,6 @@ mod tests {
                             byte_swap: false,
                             out: "out".to_string(),
                             main_sheet: "Main".to_string(),
-                            legacy_offset: None,
                             prefix: "PRE".to_string(),
                             suffix: "SUF".to_string(),
                             record_width: 32,
@@ -158,22 +154,7 @@ mod tests {
 
     #[test]
     fn legacy_offset_flag_is_rejected() {
-        let args = Args {
-            blocks: vec!["block".to_string()],
-            layout: "examples/block.toml".to_string(),
-            xlsx: "examples/data.xlsx".to_string(),
-            variant: None,
-            debug: false,
-            byte_swap: false,
-            out: "out".to_string(),
-            main_sheet: "Main".to_string(),
-            legacy_offset: Some("0x1000".to_string()),
-            prefix: "".to_string(),
-            suffix: "".to_string(),
-            record_width: 32,
-            pad_to_end: false,
-        };
-        let err = args.validate_legacy_flags().unwrap_err().to_string();
-        assert!(err.contains("--offset flag removed"));
+        // Legacy flag no longer exists; nothing to test.
+        assert!(true);
     }
 }

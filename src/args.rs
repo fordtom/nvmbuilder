@@ -1,4 +1,3 @@
-use crate::error::*;
 use clap::Parser;
 
 // Eventually these should be split per section once modules expand and become more complex
@@ -54,14 +53,6 @@ pub struct Args {
     pub out: String,
 
     #[arg(
-        long = "offset",
-        value_name = "OFFSET",
-        hide = true,
-        help = "REMOVED: Use file-level 'offset = <VALUE>' in layout file"
-    )]
-    pub legacy_offset: Option<String>,
-
-    #[arg(
         long,
         value_name = "STR",
         default_value = "",
@@ -88,16 +79,4 @@ pub struct Args {
 
     #[arg(long, help = "Pad output HEX to the full block length")]
     pub pad_to_end: bool,
-}
-
-impl Args {
-    pub fn validate_legacy_flags(&self) -> Result<(), NvmError> {
-        if let Some(val) = &self.legacy_offset {
-            return Err(NvmError::MiscError(format!(
-                "--offset flag removed. Add 'offset = {}' to your layout file instead.",
-                val
-            )));
-        }
-        Ok(())
-    }
 }

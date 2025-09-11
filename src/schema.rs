@@ -1,16 +1,12 @@
 use crate::error::*;
 use indexmap::IndexMap;
-use serde::{de, Deserialize, Deserializer};
-use std::fmt;
+use serde::Deserialize;
 
 /// Top level struct that contains the settings and the block.
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub settings: Settings,
-    #[serde(
-        default = "default_offset",
-        deserialize_with = "deserialize_u32_from_str_or_int"
-    )]
+    #[serde(default = "default_offset")]
     pub offset: u32,
     #[serde(flatten)]
     pub blocks: IndexMap<String, Block>,
@@ -72,70 +68,6 @@ fn default_padding() -> u8 {
 
 fn default_offset() -> u32 {
     0
-}
-
-fn parse_u32_from_str(offset: &str) -> Result<u32, ()> {
-    let s = offset.trim();
-    let (radix, digits) = if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        (16, hex)
-    } else {
-        (10, s)
-    };
-
-    u32::from_str_radix(&digits.replace('_', ""), radix).map_err(|_| ())
-}
-
-pub fn deserialize_u32_from_str_or_int<'de, D>(deserializer: D) -> Result<u32, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct U32Visitor;
-
-    impl<'de> de::Visitor<'de> for U32Visitor {
-        type Value = u32;
-
-        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "a u32 or a string containing a hex (0x...) or decimal number")
-        }
-
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            u32::try_from(v).map_err(|_| E::custom("Offset value out of range for u32."))
-        }
-
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            if v < 0 {
-                return Err(E::custom("Offset must be a non-negative number."));
-            }
-            u32::try_from(v as u64).map_err(|_| E::custom("Offset value out of range for u32."))
-        }
-
-        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            parse_u32_from_str(s).map_err(|_| {
-                E::custom(format!(
-                    "Invalid offset value '{}' in layout file. Must be valid hexadecimal or decimal address.",
-                    s
-                ))
-            })
-        }
-
-        fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(&s)
-        }
-    }
-
-    deserializer.deserialize_any(U32Visitor)
 }
 
 /// Any entry - should always be either a leaf or a branch (more entries).
@@ -346,10 +278,5 @@ item = {{ value = 1, type = "u8" }}
         assert_eq!(cfg.offset, 0);
     }
 
-    #[test]
-    fn invalid_offset_reports_helpful_error() {
-        let toml_bad = minimal_toml_with_offset("offset = '0xGGGG'");
-        let err = toml::from_str::<Config>(&toml_bad).unwrap_err().to_string();
-        assert!(err.contains("Invalid offset value"));
-    }
+    // Not needed: offset is now always an integer
 }

@@ -17,7 +17,7 @@ nvmbuilder <BLOCK>... -l <LAYOUT> -x <XLSX> \
 - **-v, --variant NAME**: column in the workbook to use for variants (optional)
 - **-d, --debug**: prefer the Debug column when present (optional)
 - **-o, --out DIR**: output directory for `.hex` files (default: `out`)
-- Offset is now configured in the layout file as a top-level `offset` field (hex like `0x8000` or decimal). The CLI `--offset` flag has been removed.
+- Offset is configured in the layout file as a top-level `offset` field.
 - **--prefix STR**: Optional string prepended to block name in output filename
 - **--suffix STR**: Optional string appended to block name in output filename
 - **--record-width N**: number of bytes per HEX data record (default: 32; range 1..=64)
