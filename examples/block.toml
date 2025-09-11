@@ -1,7 +1,6 @@
-offset = 0x0
-
 [settings]
 endianness = "little"
+virtual_offset = 0x0
 
 [settings.crc]
 polynomial = 0x04C11DB7

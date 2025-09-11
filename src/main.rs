@@ -32,7 +32,6 @@ fn build_block(
         &mut bytestream,
         &block.header,
         &layout.settings,
-        layout.offset,
         args.byte_swap,
         args.record_width as usize,
         args.pad_to_end,
@@ -124,7 +123,7 @@ mod tests {
                     continue;
                 }
                 for &off in &offsets {
-                    cfg.offset = off;
+                    cfg.settings.virtual_offset = off;
                     build_block(
                         &cfg,
                         &ds,
@@ -150,11 +149,5 @@ mod tests {
                 }
             }
         }
-    }
-
-    #[test]
-    fn legacy_offset_flag_is_rejected() {
-        // Legacy flag no longer exists; nothing to test.
-        assert!(true);
     }
 }

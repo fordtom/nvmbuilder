@@ -12,4 +12,4 @@ use `ast-grep` for semantic code search and better refactoring. Prefer codifying
 
 ## Compatibility Policy
 
-Future agents: do not maintain backwards compatibility unless explicitly required by the issue. We will break compatibility to deliver better functionality. Users are expected to adapt layouts/usage to adopt newer features and improvements.
+Do not maintain or even reference backwards compatibility unless explicitly required by the issue. We will break compatibility to deliver better functionality. Users are expected to adapt layouts/usage to adopt newer features and improvements.

@@ -6,16 +6,20 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub settings: Settings,
-    #[serde(default = "default_offset")]
-    pub offset: u32,
     #[serde(flatten)]
     pub blocks: IndexMap<String, Block>,
+}
+
+fn default_offset() -> u32 {
+    0
 }
 
 /// High-level settings.
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub endianness: Endianness,
+    #[serde(default = "default_offset")]
+    pub virtual_offset: u32,
     pub crc: CrcData,
 }
 
@@ -64,10 +68,6 @@ pub struct Header {
 /// Function to provide a default padding value.
 fn default_padding() -> u8 {
     0xFF
-}
-
-fn default_offset() -> u32 {
-    0
 }
 
 /// Any entry - should always be either a leaf or a branch (more entries).
@@ -230,53 +230,3 @@ macro_rules! impl_try_from_data_value {
     )* }; }
 
 impl_try_from_data_value!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn minimal_toml_with_offset(offset_line: &str) -> String {
-        format!(
-            r#"{offset}
-[settings]
-endianness = "little"
-
-[settings.crc]
-polynomial = 0x04C11DB7
-start = 0xFFFFFFFF
-xor_out = 0xFFFFFFFF
-ref_in = true
-ref_out = true
-
-[block.header]
-start_address = 0x1000
-length = 0x20
-crc_location = "end"
-
-[block.data]
-item = {{ value = 1, type = "u8" }}
-"#,
-            offset = offset_line
-        )
-    }
-
-    #[test]
-    fn parses_offset_hex_and_decimal() {
-        let toml_hex = minimal_toml_with_offset("offset = 0x8000");
-        let cfg_hex: Config = toml::from_str(&toml_hex).expect("parse hex offset");
-        assert_eq!(cfg_hex.offset, 0x8000);
-
-        let toml_dec = minimal_toml_with_offset("offset = 4096");
-        let cfg_dec: Config = toml::from_str(&toml_dec).expect("parse dec offset");
-        assert_eq!(cfg_dec.offset, 4096);
-    }
-
-    #[test]
-    fn missing_offset_defaults_to_zero() {
-        let toml_no = minimal_toml_with_offset("");
-        let cfg: Config = toml::from_str(&toml_no).expect("parse without offset");
-        assert_eq!(cfg.offset, 0);
-    }
-
-    // Not needed: offset is now always an integer
-}

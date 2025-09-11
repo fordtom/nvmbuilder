@@ -14,7 +14,6 @@ pub fn bytestream_to_hex_string(
     bytestream: &mut Vec<u8>,
     header: &Header,
     settings: &Settings,
-    offset: u32,
     byte_swap: bool,
     record_width: usize,
     pad_to_end: bool,
@@ -78,10 +77,13 @@ pub fn bytestream_to_hex_string(
         min_len
     };
     bytestream.resize(target_len, header.padding);
-    bytestream[crc_offset as usize..(crc_offset + 4) as usize]
-        .copy_from_slice(&crc_bytes);
+    bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
-    let hex_string = emit_hex(header.start_address + offset, bytestream, record_width)?;
+    let hex_string = emit_hex(
+        header.start_address + settings.virtual_offset,
+        bytestream,
+        record_width,
+    )?;
     Ok(hex_string)
 }
 
@@ -131,6 +133,7 @@ mod tests {
     fn sample_settings() -> Settings {
         Settings {
             endianness: Endianness::Little,
+            virtual_offset: 0,
             crc: CrcData {
                 polynomial: 0x04C11DB7,
                 start: 0xFFFF_FFFF,
@@ -157,16 +160,8 @@ mod tests {
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(
-            &mut bytestream,
-            &header,
-            &settings,
-            0,
-            false,
-            16,
-            false,
-        )
-        .expect("hex generation failed");
+        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, false)
+            .expect("hex generation failed");
 
         // 4 bytes payload + 4 bytes CRC
         assert_eq!(bytestream.len(), 8);
@@ -179,16 +174,8 @@ mod tests {
         let header = sample_header(32);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(
-            &mut bytestream,
-            &header,
-            &settings,
-            0,
-            false,
-            16,
-            true,
-        )
-        .expect("hex generation failed");
+        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, true)
+            .expect("hex generation failed");
 
         assert_eq!(bytestream.len(), header.length as usize);
     }
