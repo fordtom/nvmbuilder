@@ -1,5 +1,5 @@
 use crate::error::NvmError;
-use clap::Parser;
+use clap::Args;
 
 #[derive(Debug, Clone)]
 pub struct BlockNames {
@@ -23,8 +23,8 @@ pub fn parse_block_arg(block: &str) -> Result<BlockNames, NvmError> {
     }
 }
 
-#[derive(Parser, Debug)]
+#[derive(Args, Debug)]
 pub struct LayoutArgs {
-    #[arg(value_name = "BLOCK", num_args = 1.., value_parser = parse_block_arg, help = "List of blocks to build, in format blockname@filename")]
+    #[arg(value_name = "BLOCK@FILE", num_args = 1.., value_parser = parse_block_arg, help = "One or more blocks in the form name@layout_file (toml/yaml/json)")]
     pub blocks: Vec<BlockNames>,
 }

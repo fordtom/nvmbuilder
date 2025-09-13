@@ -1,6 +1,6 @@
-use clap::Parser;
+use clap::Args;
 
-#[derive(Parser, Debug)]
+#[derive(Args, Debug)]
 pub struct VariantArgs {
     #[arg(
         short = 'x',

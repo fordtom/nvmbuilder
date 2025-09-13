@@ -2,7 +2,7 @@ use crate::layout::args::LayoutArgs;
 use crate::variant::args::VariantArgs;
 use clap::Parser;
 
-// Eventually these should be split per section once modules expand and become more complex
+// Top-level CLI parser. Sub-sections are flattened from sub-Args structs.
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Build flash blocks from layout + Excel data")]
 pub struct Args {
