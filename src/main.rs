@@ -28,20 +28,20 @@ fn build_block(input: &BlockNames, data_sheet: &DataSheet, args: &Args) -> Resul
         &block.header,
         &layout.settings,
         layout.settings.byte_swap,
-        args.record_width as usize,
+        args.output.record_width as usize,
         layout.settings.pad_to_end,
     )?;
 
     let mut name_parts: Vec<String> = Vec::new();
-    if !args.prefix.is_empty() {
-        name_parts.push(args.prefix.clone());
+    if !args.output.prefix.is_empty() {
+        name_parts.push(args.output.prefix.clone());
     }
     name_parts.push(input.name.to_string());
-    if !args.suffix.is_empty() {
-        name_parts.push(args.suffix.clone());
+    if !args.output.suffix.is_empty() {
+        name_parts.push(args.output.suffix.clone());
     }
     let out_filename = format!("{}.hex", name_parts.join("_"));
-    let out_path = Path::new(&args.out).join(out_filename);
+    let out_path = Path::new(&args.output.out).join(out_filename);
     std::fs::write(out_path, hex_string)
         .map_err(|e| NvmError::FileError(format!("failed to write block {}: {}", input.name, e)))?;
 
@@ -58,7 +58,7 @@ fn main() -> Result<(), NvmError> {
     let first_layout = layout::load_layout(&first_block.file)?;
     output::checksum::init_crc_algorithm(&first_layout.settings.crc);
 
-    std::fs::create_dir_all(&args.out)
+    std::fs::create_dir_all(&args.output.out)
         .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
 
     args.layout
