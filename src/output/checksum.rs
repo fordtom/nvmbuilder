@@ -1,4 +1,4 @@
-use crate::schema::CrcData;
+use crate::layout::settings::CrcData;
 use crc::{Algorithm, Crc};
 use std::sync::OnceLock;
 

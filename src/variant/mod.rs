@@ -1,8 +1,10 @@
+pub mod args;
+
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 
 use crate::error::*;
-use crate::schema::*;
+use crate::layout::value::{DataValue, ValueSource};
 
 pub struct DataSheet {
     names: Vec<String>,
@@ -13,17 +15,12 @@ pub struct DataSheet {
 }
 
 impl DataSheet {
-    pub fn new(
-        filename: &str,
-        variant: &Option<String>,
-        debug: bool,
-        main_sheet_name: &str,
-    ) -> Result<Self, NvmError> {
-        let mut workbook: Xlsx<_> = open_workbook(filename)
-            .map_err(|_| NvmError::FileError("failed to open file: ".to_string() + filename))?;
+    pub fn new(args: &args::VariantArgs) -> Result<Self, NvmError> {
+        let mut workbook: Xlsx<_> = open_workbook(&args.xlsx)
+            .map_err(|_| NvmError::FileError(format!("failed to open file: {}", args.xlsx)))?;
 
         let main_sheet = workbook
-            .worksheet_range(main_sheet_name)
+            .worksheet_range(&args.main_sheet)
             .map_err(|_| NvmError::MiscError("Main sheet not found.".to_string()))?;
 
         let rows: Vec<_> = main_sheet.rows().collect();
@@ -53,7 +50,7 @@ impl DataSheet {
         default_values.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
 
         let mut debug_values: Option<Vec<Data>> = None;
-        if debug {
+        if args.debug {
             let debug_index = headers
                 .iter()
                 .position(|cell| Self::cell_eq_ascii(cell, "Debug"))
@@ -66,7 +63,7 @@ impl DataSheet {
         }
 
         let mut variant_values: Option<Vec<Data>> = None;
-        if let Some(name) = variant {
+        if let Some(name) = &args.variant {
             let variant_index = headers
                 .iter()
                 .position(|cell| cell.to_string() == *name)
@@ -81,7 +78,7 @@ impl DataSheet {
         let mut sheets: HashMap<String, Range<Data>> =
             HashMap::with_capacity(workbook.worksheets().len().saturating_sub(1));
         for (name, sheet) in workbook.worksheets() {
-            if name != main_sheet_name {
+            if name != args.main_sheet {
                 sheets.insert(name.to_string(), sheet);
             }
         }
