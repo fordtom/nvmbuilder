@@ -71,11 +71,11 @@ fn main() -> Result<(), NvmError> {
 
 #[cfg(test)]
 mod tests {
-    // use crate::variant::args::VariantArgs;
+    use crate::variant::args::VariantArgs;
 
     use super::*;
     use std::fs;
-    // use std::path::Path;
+    use std::path::Path;
 
     #[test]
     fn smoke_build_examples_all_formats_and_options() {
@@ -84,13 +84,12 @@ mod tests {
             "examples/block.yaml",
             "examples/block.json",
         ];
-        // let blocks = ["block", "block2", "block3"];
-        // let offsets: [u32; 2] = [0, 0x1000];
+        let blocks = ["block", "block2", "block3"];
 
         fs::create_dir_all("out").unwrap();
 
         for layout_path in layouts {
-            let /*mut*/ cfg = layout::load_layout(layout_path).expect("failed to parse layout");
+            let cfg = layout::load_layout(layout_path).expect("failed to parse layout");
             output::checksum::init_crc_algorithm(&cfg.settings.crc);
 
             // Try a few option combinations; degrade gracefully if a variant column is missing
@@ -119,47 +118,43 @@ mod tests {
                     break;
                 }
             }
-            // let ds = ds_opt.unwrap_or_else(|| {
-            //     let datasheet_args = VariantArgs {
-            //         xlsx: "examples/data.xlsx".to_string(),
-            //         debug: false,
-            //         variant: None,
-            //         main_sheet: "Main".to_string(),
-            //     };
+            let Some(ds) = ds_opt.as_ref() else { continue; };
 
-            //     DataSheet::new(&datasheet_args).expect("Excel open with default columns")
-            // });
+            for &blk in &blocks {
+                if !cfg.blocks.contains_key(blk) {
+                    continue;
+                }
 
-            // for &blk in &blocks {
-            //     if !cfg.blocks.contains_key(blk) {
-            //         continue;
-            //     }
-            //     for &off in &offsets {
-            //         cfg.settings.virtual_offset = off;
-            //         build_block(
-            //             &cfg,
-            //             &ds,
-            //             blk,
-            //             &Args {
-            //                 blocks: vec![blk.to_string()],
-            //                 layout: layout_path.to_string(),
-            //                 xlsx: "examples/data.xlsx".to_string(),
-            //                 variant: None,
-            //                 debug: false,
-            //                 byte_swap: false,
-            //                 out: "out".to_string(),
-            //                 main_sheet: "Main".to_string(),
-            //                 prefix: "PRE".to_string(),
-            //                 suffix: "SUF".to_string(),
-            //                 record_width: 32,
-            //                 pad_to_end: false,
-            //             },
-            //         )
-            //         .expect("build_block failed");
-            //         let expected = format!("{}_{}_{}.hex", "PRE", blk, "SUF");
-            //         assert!(Path::new("out").join(expected).exists());
-            //     }
-            // }
+                let args_for_block = Args {
+                    layout: layout::args::LayoutArgs {
+                        blocks: vec![layout::args::BlockNames {
+                            name: blk.to_string(),
+                            file: layout_path.to_string(),
+                        }],
+                    },
+                    variant: VariantArgs {
+                        xlsx: "examples/data.xlsx".to_string(),
+                        variant: None,
+                        debug: false,
+                        main_sheet: "Main".to_string(),
+                    },
+                    output: crate::output::args::OutputArgs {
+                        out: "out".to_string(),
+                        prefix: "PRE".to_string(),
+                        suffix: "SUF".to_string(),
+                        record_width: 32,
+                    },
+                };
+
+                let input = layout::args::BlockNames {
+                    name: blk.to_string(),
+                    file: layout_path.to_string(),
+                };
+
+                build_block(&input, ds, &args_for_block).expect("build_block failed");
+                let expected = format!("{}_{}_{}.hex", "PRE", blk, "SUF");
+                assert!(Path::new("out").join(expected).exists());
+            }
         }
     }
 }
