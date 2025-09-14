@@ -6,6 +6,8 @@ Nvmbuilder is an embedded development tool that works with layout files (toml/ya
 
 ## Tools
 
+Always run `cargo test` as a final check after making any changes.
+
 use `ast-grep` for semantic code search and better refactoring. Prefer codifying changes as ast-grep rules before sweeping edits to keep refactors reproducible.
 
 ---

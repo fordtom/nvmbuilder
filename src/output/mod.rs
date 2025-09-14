@@ -1,5 +1,5 @@
-pub mod checksum;
 pub mod args;
+pub mod checksum;
 
 use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
@@ -148,6 +148,8 @@ mod tests {
                 ref_in: true,
                 ref_out: true,
             },
+            byte_swap: false,
+            pad_to_end: false,
         }
     }
 
