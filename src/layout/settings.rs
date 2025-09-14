@@ -5,6 +5,10 @@ pub struct Settings {
     pub endianness: Endianness,
     #[serde(default = "default_offset")]
     pub virtual_offset: u32,
+    #[serde(default)]
+    pub byte_swap: bool,
+    #[serde(default)]
+    pub pad_to_end: bool,
     pub crc: CrcData,
 }
 
