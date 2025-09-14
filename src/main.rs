@@ -27,9 +27,9 @@ fn build_block(input: &BlockNames, data_sheet: &DataSheet, args: &Args) -> Resul
         &mut bytestream,
         &block.header,
         &layout.settings,
-        args.byte_swap,
+        layout.settings.byte_swap,
         args.record_width as usize,
-        args.pad_to_end,
+        layout.settings.pad_to_end,
     )?;
 
     let mut name_parts: Vec<String> = Vec::new();
