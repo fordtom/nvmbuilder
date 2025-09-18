@@ -5,7 +5,7 @@ use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
 use crate::layout::settings::{Endianness, Settings};
 
-use ihex::{Record, create_object_file_representation};
+use bin_file::{BinFile, IHexFormat};
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
     for chunk in bytes.chunks_exact_mut(2) {
@@ -95,37 +95,26 @@ fn emit_hex(
     bytestream: &[u8],
     record_width: usize,
 ) -> Result<String, NvmError> {
-    let mut records = Vec::<Record>::new();
-    let mut addr = start_address;
-    let mut idx = 0usize;
-    let mut upper: Option<u16> = None;
+    // Use bin_file to format Intel HEX output.
+    let mut bf = BinFile::new();
+    // Add the entire bytestream as one segment at the given start address.
+    bf.add_bytes(bytestream, Some(start_address as usize), false)
+        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
 
-    while idx < bytestream.len() {
-        let hi = (addr >> 16) as u16;
-        if upper != Some(hi) {
-            if hi != 0 {
-                records.push(Record::ExtendedLinearAddress(hi));
-            }
-            upper = Some(hi);
-        }
+    // Determine appropriate Intel HEX format based on address range.
+    let ihex_format = if (start_address as usize)
+        .saturating_add(bytestream.len())
+        <= 0x1_0000
+    {
+        IHexFormat::IHex16
+    } else {
+        IHexFormat::IHex32
+    };
 
-        let seg_rem = (0x1_0000 - (addr & 0xFFFF)) as usize;
-        let n = (bytestream.len() - idx).min(record_width).min(seg_rem);
-
-        records.push(Record::Data {
-            offset: (addr & 0xFFFF) as u16,
-            value: bytestream[idx..idx + n].to_vec(),
-        });
-
-        idx += n;
-        addr += n as u32;
-    }
-
-    records.push(Record::EndOfFile);
-    let obj = create_object_file_representation(&records).map_err(|_| {
-        NvmError::HexOutputError("Failed to create object file representation.".to_string())
-    })?;
-    Ok(obj)
+    let lines = bf
+        .to_ihex(Some(record_width), ihex_format)
+        .map_err(|e| NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e)))?;
+    Ok(lines.join("\n"))
 }
 
 #[cfg(test)]
