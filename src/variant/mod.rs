@@ -1,4 +1,5 @@
 pub mod args;
+mod helpers;
 
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
@@ -45,38 +46,7 @@ impl DataSheet {
 
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
         names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
-        // Duplicate-name detection with row numbers (1-based, including header offset)
-        {
-            let mut index_map: HashMap<String, Vec<usize>> = HashMap::new();
-            for (idx, nm) in names.iter().enumerate() {
-                let key = nm.trim();
-                if key.is_empty() {
-                    continue;
-                }
-                index_map.entry(key.to_string()).or_default().push(idx + 2);
-            }
-            let mut dups: Vec<(String, Vec<usize>)> = index_map
-                .into_iter()
-                .filter_map(|(k, v)| if v.len() > 1 { Some((k, v)) } else { None })
-                .collect();
-            dups.sort_by(|a, b| a.0.cmp(&b.0));
-            if !dups.is_empty() {
-                eprintln!(
-                    "[WARN] Duplicate names detected in sheet '{}' (column 'Name'):",
-                    args.main_sheet
-                );
-                for (dup_name, rows) in dups {
-                    eprintln!(
-                        "  - '{}' at rows {}",
-                        dup_name,
-                        rows.iter()
-                            .map(|r| r.to_string())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    );
-                }
-            }
-        }
+        helpers::warn_duplicate_names(&names, &args.main_sheet);
 
         let mut default_values: Vec<Data> = Vec::with_capacity(data_rows);
         default_values.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
