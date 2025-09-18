@@ -30,6 +30,7 @@ fn build_block(input: &BlockNames, data_sheet: &DataSheet, args: &Args) -> Resul
         layout.settings.byte_swap,
         args.output.record_width as usize,
         layout.settings.pad_to_end,
+        args.output.format,
     )?;
 
     let mut name_parts: Vec<String> = Vec::new();
@@ -40,7 +41,11 @@ fn build_block(input: &BlockNames, data_sheet: &DataSheet, args: &Args) -> Resul
     if !args.output.suffix.is_empty() {
         name_parts.push(args.output.suffix.clone());
     }
-    let out_filename = format!("{}.hex", name_parts.join("_"));
+    let ext = match args.output.format {
+        crate::output::args::OutputFormat::Hex => "hex",
+        crate::output::args::OutputFormat::Mot => "mot",
+    };
+    let out_filename = format!("{}.{}", name_parts.join("_"), ext);
     let out_path = Path::new(&args.output.out).join(out_filename);
     std::fs::write(out_path, hex_string)
         .map_err(|e| NvmError::FileError(format!("failed to write block {}: {}", input.name, e)))?;
@@ -143,6 +148,7 @@ mod tests {
                         prefix: "PRE".to_string(),
                         suffix: "SUF".to_string(),
                         record_width: 32,
+                        format: crate::output::args::OutputFormat::Hex,
                     },
                 };
 
@@ -154,6 +160,32 @@ mod tests {
                 build_block(&input, ds, &args_for_block).expect("build_block failed");
                 let expected = format!("{}_{}_{}.hex", "PRE", blk, "SUF");
                 assert!(Path::new("out").join(expected).exists());
+
+                // Also validate Mot output
+                let args_for_block_mot = Args {
+                    layout: layout::args::LayoutArgs {
+                        blocks: vec![layout::args::BlockNames {
+                            name: blk.to_string(),
+                            file: layout_path.to_string(),
+                        }],
+                    },
+                    variant: VariantArgs {
+                        xlsx: "examples/data.xlsx".to_string(),
+                        variant: None,
+                        debug: false,
+                        main_sheet: "Main".to_string(),
+                    },
+                    output: crate::output::args::OutputArgs {
+                        out: "out".to_string(),
+                        prefix: "PRE".to_string(),
+                        suffix: "SUF".to_string(),
+                        record_width: 32,
+                        format: crate::output::args::OutputFormat::Mot,
+                    },
+                };
+                build_block(&input, ds, &args_for_block_mot).expect("build_block failed");
+                let expected_mot = format!("{}_{}_{}.srec", "PRE", blk, "SUF");
+                assert!(Path::new("out").join(expected_mot).exists());
             }
         }
     }

@@ -4,6 +4,7 @@ pub mod checksum;
 use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
 use crate::layout::settings::{Endianness, Settings};
+use crate::output::args::OutputFormat;
 
 use bin_file::{BinFile, IHexFormat};
 
@@ -20,6 +21,7 @@ pub fn bytestream_to_hex_string(
     byte_swap: bool,
     record_width: usize,
     pad_to_end: bool,
+    format: OutputFormat,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -86,6 +88,7 @@ pub fn bytestream_to_hex_string(
         header.start_address + settings.virtual_offset,
         bytestream,
         record_width,
+        format,
     )?;
     Ok(hex_string)
 }
@@ -94,27 +97,50 @@ fn emit_hex(
     start_address: u32,
     bytestream: &[u8],
     record_width: usize,
+    format: OutputFormat,
 ) -> Result<String, NvmError> {
-    // Use bin_file to format Intel HEX output.
+    // Use bin_file to format output.
     let mut bf = BinFile::new();
-    // Add the entire bytestream as one segment at the given start address.
     bf.add_bytes(bytestream, Some(start_address as usize), false)
         .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
 
-    // Determine appropriate Intel HEX format based on address range.
-    let ihex_format = if (start_address as usize)
-        .saturating_add(bytestream.len())
-        <= 0x1_0000
-    {
-        IHexFormat::IHex16
-    } else {
-        IHexFormat::IHex32
-    };
-
-    let lines = bf
-        .to_ihex(Some(record_width), ihex_format)
-        .map_err(|e| NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e)))?;
-    Ok(lines.join("\n"))
+    match format {
+        OutputFormat::Hex => {
+            let ihex_format = if (start_address as usize)
+                .saturating_add(bytestream.len())
+                <= 0x1_0000
+            {
+                IHexFormat::IHex16
+            } else {
+                IHexFormat::IHex32
+            };
+            let lines = bf
+                .to_ihex(Some(record_width), ihex_format)
+                .map_err(|e| NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e)))?;
+            Ok(lines.join("\n"))
+        }
+        OutputFormat::Mot => {
+            use bin_file::SRecordAddressLength;
+            // Auto-select SREC address length based on range, mimicking IHex selection
+            let addr_len = if (start_address as usize)
+                .saturating_add(bytestream.len())
+                <= 0x1_0000
+            {
+                SRecordAddressLength::Length16
+            } else if (start_address as usize)
+                .saturating_add(bytestream.len())
+                <= 0x1_0000_00
+            {
+                SRecordAddressLength::Length24
+            } else {
+                SRecordAddressLength::Length32
+            };
+            let lines = bf
+                .to_srec(Some(record_width), addr_len)
+                .map_err(|e| NvmError::HexOutputError(format!("Failed to generate S-Record: {}", e)))?;
+            Ok(lines.join("\n"))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -158,7 +184,7 @@ mod tests {
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, false)
+        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, false, crate::output::args::OutputFormat::Hex)
             .expect("hex generation failed");
 
         // 4 bytes payload + 4 bytes CRC
@@ -172,7 +198,7 @@ mod tests {
         let header = sample_header(32);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, true)
+        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, true, crate::output::args::OutputFormat::Hex)
             .expect("hex generation failed");
 
         assert_eq!(bytestream.len(), header.length as usize);

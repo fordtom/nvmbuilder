@@ -1,4 +1,10 @@
-use clap::Args;
+use clap::{Args, ValueEnum};
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+pub enum OutputFormat {
+    Hex,
+    Mot,
+}
 
 #[derive(Args, Debug, Clone)]
 pub struct OutputArgs {
@@ -35,5 +41,13 @@ pub struct OutputArgs {
         help = "Number of bytes per HEX data record (1..=64)",
     )]
     pub record_width: u16,
+
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = OutputFormat::Hex,
+        help = "Output format: hex or mot",
+    )]
+    pub format: OutputFormat,
 }
 
