@@ -1,4 +1,10 @@
-use clap::Args;
+use clap::{Args, ValueEnum};
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+pub enum OutputFormat {
+    Hex,
+    Mot,
+}
 
 #[derive(Args, Debug, Clone)]
 pub struct OutputArgs {
@@ -7,7 +13,7 @@ pub struct OutputArgs {
         long,
         value_name = "DIR",
         default_value = "out",
-        help = "Output directory for .hex files",
+        help = "Output directory for .hex files"
     )]
     pub out: String,
 
@@ -15,7 +21,7 @@ pub struct OutputArgs {
         long,
         value_name = "STR",
         default_value = "",
-        help = "Optional prefix to prepend to each block name in output filename",
+        help = "Optional prefix to prepend to each block name in output filename"
     )]
     pub prefix: String,
 
@@ -23,7 +29,7 @@ pub struct OutputArgs {
         long,
         value_name = "STR",
         default_value = "",
-        help = "Optional suffix to append to each block name in output filename",
+        help = "Optional suffix to append to each block name in output filename"
     )]
     pub suffix: String,
 
@@ -35,5 +41,12 @@ pub struct OutputArgs {
         help = "Number of bytes per HEX data record (1..=64)",
     )]
     pub record_width: u16,
-}
 
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = OutputFormat::Hex,
+        help = "Output format: hex or mot",
+    )]
+    pub format: OutputFormat,
+}

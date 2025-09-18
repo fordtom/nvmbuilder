@@ -4,8 +4,9 @@ pub mod checksum;
 use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
 use crate::layout::settings::{Endianness, Settings};
+use crate::output::args::OutputFormat;
 
-use ihex::{Record, create_object_file_representation};
+use bin_file::{BinFile, IHexFormat};
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
     for chunk in bytes.chunks_exact_mut(2) {
@@ -20,6 +21,7 @@ pub fn bytestream_to_hex_string(
     byte_swap: bool,
     record_width: usize,
     pad_to_end: bool,
+    format: OutputFormat,
 ) -> Result<String, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -86,6 +88,7 @@ pub fn bytestream_to_hex_string(
         header.start_address + settings.virtual_offset,
         bytestream,
         record_width,
+        format,
     )?;
     Ok(hex_string)
 }
@@ -94,38 +97,43 @@ fn emit_hex(
     start_address: u32,
     bytestream: &[u8],
     record_width: usize,
+    format: OutputFormat,
 ) -> Result<String, NvmError> {
-    let mut records = Vec::<Record>::new();
-    let mut addr = start_address;
-    let mut idx = 0usize;
-    let mut upper: Option<u16> = None;
+    // Use bin_file to format output.
+    let mut bf = BinFile::new();
+    bf.add_bytes(bytestream, Some(start_address as usize), false)
+        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
 
-    while idx < bytestream.len() {
-        let hi = (addr >> 16) as u16;
-        if upper != Some(hi) {
-            if hi != 0 {
-                records.push(Record::ExtendedLinearAddress(hi));
-            }
-            upper = Some(hi);
+    match format {
+        OutputFormat::Hex => {
+            let ihex_format =
+                if (start_address as usize).saturating_add(bytestream.len()) <= 0x1_0000 {
+                    IHexFormat::IHex16
+                } else {
+                    IHexFormat::IHex32
+                };
+            let lines = bf.to_ihex(Some(record_width), ihex_format).map_err(|e| {
+                NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e))
+            })?;
+            Ok(lines.join("\n"))
         }
-
-        let seg_rem = (0x1_0000 - (addr & 0xFFFF)) as usize;
-        let n = (bytestream.len() - idx).min(record_width).min(seg_rem);
-
-        records.push(Record::Data {
-            offset: (addr & 0xFFFF) as u16,
-            value: bytestream[idx..idx + n].to_vec(),
-        });
-
-        idx += n;
-        addr += n as u32;
+        OutputFormat::Mot => {
+            use bin_file::SRecordAddressLength;
+            // Auto-select SREC address length based on range, mimicking IHex selection
+            let addr_len = if (start_address as usize).saturating_add(bytestream.len()) <= 0x1_0000
+            {
+                SRecordAddressLength::Length16
+            } else if (start_address as usize).saturating_add(bytestream.len()) <= 0x100_0000 {
+                SRecordAddressLength::Length24
+            } else {
+                SRecordAddressLength::Length32
+            };
+            let lines = bf.to_srec(Some(record_width), addr_len).map_err(|e| {
+                NvmError::HexOutputError(format!("Failed to generate S-Record: {}", e))
+            })?;
+            Ok(lines.join("\n"))
+        }
     }
-
-    records.push(Record::EndOfFile);
-    let obj = create_object_file_representation(&records).map_err(|_| {
-        NvmError::HexOutputError("Failed to create object file representation.".to_string())
-    })?;
-    Ok(obj)
 }
 
 #[cfg(test)]
@@ -169,8 +177,16 @@ mod tests {
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, false)
-            .expect("hex generation failed");
+        let _hex = bytestream_to_hex_string(
+            &mut bytestream,
+            &header,
+            &settings,
+            false,
+            16,
+            false,
+            crate::output::args::OutputFormat::Hex,
+        )
+        .expect("hex generation failed");
 
         // 4 bytes payload + 4 bytes CRC
         assert_eq!(bytestream.len(), 8);
@@ -183,8 +199,16 @@ mod tests {
         let header = sample_header(32);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, true)
-            .expect("hex generation failed");
+        let _hex = bytestream_to_hex_string(
+            &mut bytestream,
+            &header,
+            &settings,
+            false,
+            16,
+            true,
+            crate::output::args::OutputFormat::Hex,
+        )
+        .expect("hex generation failed");
 
         assert_eq!(bytestream.len(), header.length as usize);
     }

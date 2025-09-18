@@ -12,10 +12,10 @@ keywords = ["flash", "hex", "layout", "excel", "data"]
 exclude = ["examples/**", "flake.*", ".envrc", ".cursor/**"]
 
 [dependencies]
+bin_file = "0.1.4"
 calamine = "0.29.0"
 clap = { version = "4.5.42", features = ["derive"] }
 crc = "3.3.0"
-ihex = "3.0.0"
 indexmap = { version = "2.10.0", features = ["serde"] }
 rayon = "1.11.0"
 serde = { version = "1.0.219", features = ["derive"] }
