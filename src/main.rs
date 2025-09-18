@@ -123,7 +123,9 @@ mod tests {
                     break;
                 }
             }
-            let Some(ds) = ds_opt.as_ref() else { continue; };
+            let Some(ds) = ds_opt.as_ref() else {
+                continue;
+            };
 
             for &blk in &blocks {
                 if !cfg.blocks.contains_key(blk) {
@@ -184,7 +186,7 @@ mod tests {
                     },
                 };
                 build_block(&input, ds, &args_for_block_mot).expect("build_block failed");
-                let expected_mot = format!("{}_{}_{}.srec", "PRE", blk, "SUF");
+                let expected_mot = format!("{}_{}_{}.mot", "PRE", blk, "SUF");
                 assert!(Path::new("out").join(expected_mot).exists());
             }
         }
