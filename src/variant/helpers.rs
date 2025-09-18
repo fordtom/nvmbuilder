@@ -3,8 +3,7 @@ use std::collections::HashMap;
 /// Warn about duplicate names and their 1-based row indices (including header offset of 1).
 ///
 /// - `names` should be the list of names as read from the main sheet (excluding the header row).
-/// - `sheet_name` is used only for the warning message context.
-pub fn warn_duplicate_names(names: &[String], sheet_name: &str) {
+pub fn warn_duplicate_names(names: &[String]) {
     let mut index_map: HashMap<String, Vec<usize>> = HashMap::new();
 
     for (idx, name) in names.iter().enumerate() {
@@ -27,10 +26,7 @@ pub fn warn_duplicate_names(names: &[String], sheet_name: &str) {
     duplicates.sort_by(|a, b| a.0.cmp(&b.0));
 
     if !duplicates.is_empty() {
-        eprintln!(
-            "[WARN] Duplicate names detected in sheet '{}' (column 'Name'):",
-            sheet_name
-        );
+        eprintln!("[WARN] Duplicate names detected (column 'Name'):");
         for (dup_name, rows) in duplicates {
             let rows_str = rows
                 .iter()

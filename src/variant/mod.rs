@@ -46,7 +46,7 @@ impl DataSheet {
 
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
         names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
-        helpers::warn_duplicate_names(&names, &args.main_sheet);
+        helpers::warn_duplicate_names(&names);
 
         let mut default_values: Vec<Data> = Vec::with_capacity(data_rows);
         default_values.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
