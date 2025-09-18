@@ -106,38 +106,31 @@ fn emit_hex(
 
     match format {
         OutputFormat::Hex => {
-            let ihex_format = if (start_address as usize)
-                .saturating_add(bytestream.len())
-                <= 0x1_0000
-            {
-                IHexFormat::IHex16
-            } else {
-                IHexFormat::IHex32
-            };
-            let lines = bf
-                .to_ihex(Some(record_width), ihex_format)
-                .map_err(|e| NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e)))?;
+            let ihex_format =
+                if (start_address as usize).saturating_add(bytestream.len()) <= 0x1_0000 {
+                    IHexFormat::IHex16
+                } else {
+                    IHexFormat::IHex32
+                };
+            let lines = bf.to_ihex(Some(record_width), ihex_format).map_err(|e| {
+                NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e))
+            })?;
             Ok(lines.join("\n"))
         }
         OutputFormat::Mot => {
             use bin_file::SRecordAddressLength;
             // Auto-select SREC address length based on range, mimicking IHex selection
-            let addr_len = if (start_address as usize)
-                .saturating_add(bytestream.len())
-                <= 0x1_0000
+            let addr_len = if (start_address as usize).saturating_add(bytestream.len()) <= 0x1_0000
             {
                 SRecordAddressLength::Length16
-            } else if (start_address as usize)
-                .saturating_add(bytestream.len())
-                <= 0x1_0000_00
-            {
+            } else if (start_address as usize).saturating_add(bytestream.len()) <= 0x100_0000 {
                 SRecordAddressLength::Length24
             } else {
                 SRecordAddressLength::Length32
             };
-            let lines = bf
-                .to_srec(Some(record_width), addr_len)
-                .map_err(|e| NvmError::HexOutputError(format!("Failed to generate S-Record: {}", e)))?;
+            let lines = bf.to_srec(Some(record_width), addr_len).map_err(|e| {
+                NvmError::HexOutputError(format!("Failed to generate S-Record: {}", e))
+            })?;
             Ok(lines.join("\n"))
         }
     }
@@ -184,8 +177,16 @@ mod tests {
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, false, crate::output::args::OutputFormat::Hex)
-            .expect("hex generation failed");
+        let _hex = bytestream_to_hex_string(
+            &mut bytestream,
+            &header,
+            &settings,
+            false,
+            16,
+            false,
+            crate::output::args::OutputFormat::Hex,
+        )
+        .expect("hex generation failed");
 
         // 4 bytes payload + 4 bytes CRC
         assert_eq!(bytestream.len(), 8);
@@ -198,8 +199,16 @@ mod tests {
         let header = sample_header(32);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(&mut bytestream, &header, &settings, false, 16, true, crate::output::args::OutputFormat::Hex)
-            .expect("hex generation failed");
+        let _hex = bytestream_to_hex_string(
+            &mut bytestream,
+            &header,
+            &settings,
+            false,
+            16,
+            true,
+            crate::output::args::OutputFormat::Hex,
+        )
+        .expect("hex generation failed");
 
         assert_eq!(bytestream.len(), header.length as usize);
     }

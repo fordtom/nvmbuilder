@@ -13,7 +13,7 @@ pub struct OutputArgs {
         long,
         value_name = "DIR",
         default_value = "out",
-        help = "Output directory for .hex files",
+        help = "Output directory for .hex files"
     )]
     pub out: String,
 
@@ -21,7 +21,7 @@ pub struct OutputArgs {
         long,
         value_name = "STR",
         default_value = "",
-        help = "Optional prefix to prepend to each block name in output filename",
+        help = "Optional prefix to prepend to each block name in output filename"
     )]
     pub prefix: String,
 
@@ -29,7 +29,7 @@ pub struct OutputArgs {
         long,
         value_name = "STR",
         default_value = "",
-        help = "Optional suffix to append to each block name in output filename",
+        help = "Optional suffix to append to each block name in output filename"
     )]
     pub suffix: String,
 
@@ -50,4 +50,3 @@ pub struct OutputArgs {
     )]
     pub format: OutputFormat,
 }
-
