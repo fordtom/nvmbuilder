@@ -35,7 +35,7 @@ macro_rules! err {
 }
 
 macro_rules! impl_try_from_strict_unsigned {
-    ($($t:ty),* $(,)?) => {$({
+    ($($t:ty),* $(,)?) => {$(
         impl TryFromStrict<&DataValue> for $t {
             fn try_from_strict(value: &DataValue) -> Result<Self, NvmError> {
                 match value {
@@ -56,11 +56,11 @@ macro_rules! impl_try_from_strict_unsigned {
                 }
             }
         }
-    })*};
+    )*};
 }
 
 macro_rules! impl_try_from_strict_signed {
-    ($($t:ty),* $(,)?) => {$({
+    ($($t:ty),* $(,)?) => {$(
         impl TryFromStrict<&DataValue> for $t {
             fn try_from_strict(value: &DataValue) -> Result<Self, NvmError> {
                 match value {
@@ -80,7 +80,7 @@ macro_rules! impl_try_from_strict_signed {
                 }
             }
         }
-    })*};
+    )*};
 }
 
 macro_rules! impl_try_from_strict_float_targets {
@@ -93,24 +93,46 @@ macro_rules! impl_try_from_strict_float_targets {
                         if !v.is_finite() || !out.is_finite() {
                             return Err(err!("non-finite float not allowed in strict mode"));
                         }
-                        if (out as f64) == *v { Ok(out) } else { Err(err!("lossy float narrowing conversion not allowed in strict mode")) }
+                        if (out as f64) == *v {
+                            Ok(out)
+                        } else {
+                            Err(err!(
+                                "lossy float narrowing conversion not allowed in strict mode"
+                            ))
+                        }
                     }
                     DataValue::U64(v) => {
                         let out = (*v as $t);
-                        if !out.is_finite() { return Err(err!("integer to float produced non-finite value")); }
+                        if !out.is_finite() {
+                            return Err(err!("integer to float produced non-finite value"));
+                        }
                         // exactness check via round-trip
-                        if (out as u64) == *v { Ok(out) } else { Err(err!("lossy integer to float conversion not allowed in strict mode")) }
+                        if (out as u64) == *v {
+                            Ok(out)
+                        } else {
+                            Err(err!(
+                                "lossy integer to float conversion not allowed in strict mode"
+                            ))
+                        }
                     }
                     DataValue::I64(v) => {
                         let out = (*v as $t);
-                        if !out.is_finite() { return Err(err!("integer to float produced non-finite value")); }
-                        if (out as i64) == *v { Ok(out) } else { Err(err!("lossy integer to float conversion not allowed in strict mode")) }
+                        if !out.is_finite() {
+                            return Err(err!("integer to float produced non-finite value"));
+                        }
+                        if (out as i64) == *v {
+                            Ok(out)
+                        } else {
+                            Err(err!(
+                                "lossy integer to float conversion not allowed in strict mode"
+                            ))
+                        }
                     }
                     DataValue::Str(_) => Err(err!("Cannot convert string to scalar type.")),
                 }
             }
         }
-    }
+    };
 }
 
 impl_try_from_strict_unsigned!(u8, u16, u32, u64);
@@ -122,11 +144,23 @@ impl TryFromStrict<&DataValue> for f64 {
             DataValue::F64(v) => Ok(*v),
             DataValue::U64(v) => {
                 let out = *v as f64;
-                if (out as u64) == *v { Ok(out) } else { Err(err!("lossy integer to float conversion not allowed in strict mode")) }
+                if (out as u64) == *v {
+                    Ok(out)
+                } else {
+                    Err(err!(
+                        "lossy integer to float conversion not allowed in strict mode"
+                    ))
+                }
             }
             DataValue::I64(v) => {
                 let out = *v as f64;
-                if (out as i64) == *v { Ok(out) } else { Err(err!("lossy integer to float conversion not allowed in strict mode")) }
+                if (out as i64) == *v {
+                    Ok(out)
+                } else {
+                    Err(err!(
+                        "lossy integer to float conversion not allowed in strict mode"
+                    ))
+                }
             }
             DataValue::Str(_) => Err(err!("Cannot convert string to scalar type.")),
         }
@@ -141,7 +175,11 @@ pub fn convert_value_to_bytes(
 ) -> Result<Vec<u8>, NvmError> {
     macro_rules! to_bytes {
         ($t:ty) => {{
-            let val: $t = if strict { <$t as TryFromStrict<&DataValue>>::try_from_strict(value)? } else { <$t as TryFrom<&DataValue>>::try_from(value)? };
+            let val: $t = if strict {
+                <$t as TryFromStrict<&DataValue>>::try_from_strict(value)?
+            } else {
+                <$t as TryFrom<&DataValue>>::try_from(value)?
+            };
             Ok(val.to_endian_bytes(endianness))
         }};
     }
