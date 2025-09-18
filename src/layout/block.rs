@@ -34,6 +34,7 @@ impl Block {
         &self,
         data_sheet: &DataSheet,
         settings: &Settings,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         let mut buffer = Vec::with_capacity(self.header.length as usize);
         let mut offset = 0;
@@ -45,6 +46,7 @@ impl Block {
             &mut offset,
             &settings.endianness,
             &self.header.padding,
+            strict,
         )?;
 
         if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
@@ -65,6 +67,7 @@ impl Block {
         offset: &mut usize,
         endianness: &Endianness,
         padding: &u8,
+        strict: bool,
     ) -> Result<(), NvmError> {
         match table {
             Entry::Leaf(leaf) => {
@@ -74,14 +77,14 @@ impl Block {
                     *offset += 1;
                 }
 
-                let bytes = leaf.emit_bytes(data_sheet, endianness, padding)?;
+                let bytes = leaf.emit_bytes(data_sheet, endianness, padding, strict)?;
                 *offset += bytes.len();
                 buffer.extend(bytes);
             }
             Entry::Branch(branch) => {
                 for (_, v) in branch.iter() {
                     Self::build_bytestream_inner(
-                        v, data_sheet, buffer, offset, endianness, padding,
+                        v, data_sheet, buffer, offset, endianness, padding, strict,
                     )?;
                 }
             }

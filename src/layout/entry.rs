@@ -69,15 +69,16 @@ impl LeafEntry {
         data_sheet: &DataSheet,
         endianness: &Endianness,
         padding: &u8,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match self.size {
-            None => self.emit_bytes_single(data_sheet, endianness),
+            None => self.emit_bytes_single(data_sheet, endianness, strict),
             Some(SizeSource::OneD(size)) => {
-                let bytes = self.emit_bytes_1d(data_sheet, endianness, size, padding)?;
+                let bytes = self.emit_bytes_1d(data_sheet, endianness, size, padding, strict)?;
                 Ok(bytes)
             }
             Some(SizeSource::TwoD(size)) => {
-                let bytes = self.emit_bytes_2d(data_sheet, endianness, size, padding)?;
+                let bytes = self.emit_bytes_2d(data_sheet, endianness, size, padding, strict)?;
                 Ok(bytes)
             }
         }
@@ -87,13 +88,14 @@ impl LeafEntry {
         &self,
         data_sheet: &DataSheet,
         endianness: &Endianness,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match &self.source {
             EntrySource::Name(name) => {
                 let value = data_sheet.retrieve_single_value(name)?;
-                value.to_bytes(self.scalar_type, endianness)
+                value.to_bytes(self.scalar_type, endianness, strict)
             }
-            EntrySource::Value(ValueSource::Single(v)) => v.to_bytes(self.scalar_type, endianness),
+            EntrySource::Value(ValueSource::Single(v)) => v.to_bytes(self.scalar_type, endianness, strict),
             EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
                 "Single value expected for scalar type.".to_string(),
             )),
@@ -106,6 +108,7 @@ impl LeafEntry {
         endianness: &Endianness,
         size: usize,
         padding: &u8,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
 
@@ -121,13 +124,13 @@ impl LeafEntry {
                 }
                 ValueSource::Array(v) => {
                     for v in v {
-                        out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                        out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
                     }
                 }
             },
             EntrySource::Value(ValueSource::Array(v)) => {
                 for v in v {
-                    out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                    out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
                 }
             }
             EntrySource::Value(ValueSource::Single(v)) => {
@@ -157,6 +160,7 @@ impl LeafEntry {
         endianness: &Endianness,
         size: [usize; 2],
         padding: &u8,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
         match &self.source {
             EntrySource::Name(name) => {
@@ -182,7 +186,7 @@ impl LeafEntry {
                 let mut out = Vec::with_capacity(total_bytes);
                 for row in data {
                     for v in row {
-                        out.extend(v.to_bytes(self.scalar_type, endianness)?);
+                        out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
                     }
                 }
 

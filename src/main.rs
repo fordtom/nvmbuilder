@@ -1,10 +1,10 @@
 mod args;
+mod commands;
 mod error;
 mod layout;
 mod output;
 mod variant;
 mod writer;
-mod commands;
 
 use clap::Parser;
 
@@ -94,6 +94,7 @@ mod tests {
                             name: blk.to_string(),
                             file: layout_path.to_string(),
                         }],
+                        strict: false,
                     },
                     variant: VariantArgs {
                         xlsx: "examples/data.xlsx".to_string(),
@@ -127,6 +128,7 @@ mod tests {
                             name: blk.to_string(),
                             file: layout_path.to_string(),
                         }],
+                        strict: false,
                     },
                     variant: VariantArgs {
                         xlsx: "examples/data.xlsx".to_string(),
