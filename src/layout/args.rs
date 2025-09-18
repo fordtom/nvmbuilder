@@ -27,4 +27,11 @@ pub fn parse_block_arg(block: &str) -> Result<BlockNames, NvmError> {
 pub struct LayoutArgs {
     #[arg(value_name = "BLOCK@FILE", num_args = 1.., value_parser = parse_block_arg, help = "One or more blocks in the form name@layout_file (toml/yaml/json)")]
     pub blocks: Vec<BlockNames>,
+
+    #[arg(
+        long,
+        help = "Enable strict type conversions; disallow lossy casts during bytestream assembly",
+        default_value_t = false
+    )]
+    pub strict: bool,
 }

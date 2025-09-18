@@ -1,6 +1,6 @@
 use super::entry::ScalarType;
-use super::settings::EndianBytes;
 use super::settings::Endianness;
+use super::conversions::convert_value_to_bytes;
 use crate::error::*;
 use serde::Deserialize;
 
@@ -25,19 +25,9 @@ impl DataValue {
         &self,
         scalar_type: ScalarType,
         endianness: &Endianness,
+        strict: bool,
     ) -> Result<Vec<u8>, NvmError> {
-        match scalar_type {
-            ScalarType::U8 => Ok(u8::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I8 => Ok(i8::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::U16 => Ok(u16::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I16 => Ok(i16::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::U32 => Ok(u32::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I32 => Ok(i32::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::U64 => Ok(u64::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::I64 => Ok(i64::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::F32 => Ok(f32::try_from(self)?.to_endian_bytes(endianness)),
-            ScalarType::F64 => Ok(f64::try_from(self)?.to_endian_bytes(endianness)),
-        }
+        convert_value_to_bytes(self, scalar_type, endianness, strict)
     }
 
     pub fn string_to_bytes(&self) -> Result<Vec<u8>, NvmError> {
