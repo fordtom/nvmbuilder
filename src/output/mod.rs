@@ -101,7 +101,7 @@ pub fn bytestream_to_hex_string(
     Ok(hex_string)
 }
 
-fn emit_hex<'a>(
+pub fn emit_hex<'a>(
     ranges: &[DataRange<'a>],
     record_width: usize,
     format: OutputFormat,
