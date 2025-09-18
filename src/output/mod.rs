@@ -8,6 +8,12 @@ use crate::output::args::OutputFormat;
 
 use bin_file::{BinFile, IHexFormat};
 
+#[derive(Debug, Clone)]
+pub struct DataRange<'a> {
+    pub start_address: u32,
+    pub bytestream: &'a [u8],
+}
+
 fn byte_swap_inplace(bytes: &mut [u8]) {
     for chunk in bytes.chunks_exact_mut(2) {
         chunk.swap(0, 1);
@@ -85,33 +91,43 @@ pub fn bytestream_to_hex_string(
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
     let hex_string = emit_hex(
-        header.start_address + settings.virtual_offset,
-        bytestream,
+        &[DataRange {
+            start_address: header.start_address + settings.virtual_offset,
+            bytestream: bytestream.as_slice(),
+        }],
         record_width,
         format,
     )?;
     Ok(hex_string)
 }
 
-fn emit_hex(
-    start_address: u32,
-    bytestream: &[u8],
+fn emit_hex<'a>(
+    ranges: &[DataRange<'a>],
     record_width: usize,
     format: OutputFormat,
 ) -> Result<String, NvmError> {
     // Use bin_file to format output.
     let mut bf = BinFile::new();
-    bf.add_bytes(bytestream, Some(start_address as usize), false)
-        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+    for range in ranges {
+        bf.add_bytes(range.bytestream, Some(range.start_address as usize), false)
+            .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+    }
 
     match format {
         OutputFormat::Hex => {
-            let ihex_format =
-                if (start_address as usize).saturating_add(bytestream.len()) <= 0x1_0000 {
-                    IHexFormat::IHex16
-                } else {
-                    IHexFormat::IHex32
-                };
+            // Select format based on the highest end address across ranges
+            let mut max_end: usize = 0;
+            for range in ranges {
+                let end = (range.start_address as usize).saturating_add(range.bytestream.len());
+                if end > max_end {
+                    max_end = end;
+                }
+            }
+            let ihex_format = if max_end <= 0x1_0000 {
+                IHexFormat::IHex16
+            } else {
+                IHexFormat::IHex32
+            };
             let lines = bf.to_ihex(Some(record_width), ihex_format).map_err(|e| {
                 NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e))
             })?;
@@ -120,10 +136,16 @@ fn emit_hex(
         OutputFormat::Mot => {
             use bin_file::SRecordAddressLength;
             // Auto-select SREC address length based on range, mimicking IHex selection
-            let addr_len = if (start_address as usize).saturating_add(bytestream.len()) <= 0x1_0000
-            {
+            let mut max_end: usize = 0;
+            for range in ranges {
+                let end = (range.start_address as usize).saturating_add(range.bytestream.len());
+                if end > max_end {
+                    max_end = end;
+                }
+            }
+            let addr_len = if max_end <= 0x1_0000 {
                 SRecordAddressLength::Length16
-            } else if (start_address as usize).saturating_add(bytestream.len()) <= 0x100_0000 {
+            } else if max_end <= 0x100_0000 {
                 SRecordAddressLength::Length24
             } else {
                 SRecordAddressLength::Length32
