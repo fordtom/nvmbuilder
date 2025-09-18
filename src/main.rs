@@ -3,55 +3,14 @@ mod error;
 mod layout;
 mod output;
 mod variant;
+mod writer;
+mod commands;
 
 use clap::Parser;
-use rayon::prelude::*;
-use std::path::Path;
 
 use args::Args;
 use error::*;
-use layout::args::BlockNames;
 use variant::DataSheet;
-
-fn build_block(input: &BlockNames, data_sheet: &DataSheet, args: &Args) -> Result<(), NvmError> {
-    let layout = layout::load_layout(&input.file)?;
-
-    let block = layout
-        .blocks
-        .get(&input.name)
-        .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
-
-    let mut bytestream = block.build_bytestream(data_sheet, &layout.settings)?;
-
-    let hex_string = output::bytestream_to_hex_string(
-        &mut bytestream,
-        &block.header,
-        &layout.settings,
-        layout.settings.byte_swap,
-        args.output.record_width as usize,
-        layout.settings.pad_to_end,
-        args.output.format,
-    )?;
-
-    let mut name_parts: Vec<String> = Vec::new();
-    if !args.output.prefix.is_empty() {
-        name_parts.push(args.output.prefix.clone());
-    }
-    name_parts.push(input.name.to_string());
-    if !args.output.suffix.is_empty() {
-        name_parts.push(args.output.suffix.clone());
-    }
-    let ext = match args.output.format {
-        crate::output::args::OutputFormat::Hex => "hex",
-        crate::output::args::OutputFormat::Mot => "mot",
-    };
-    let out_filename = format!("{}.{}", name_parts.join("_"), ext);
-    let out_path = Path::new(&args.output.out).join(out_filename);
-    std::fs::write(out_path, hex_string)
-        .map_err(|e| NvmError::FileError(format!("failed to write block {}: {}", input.name, e)))?;
-
-    Ok(())
-}
 
 fn main() -> Result<(), NvmError> {
     let args = Args::parse();
@@ -66,10 +25,7 @@ fn main() -> Result<(), NvmError> {
     std::fs::create_dir_all(&args.output.out)
         .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
 
-    args.layout
-        .blocks
-        .par_iter()
-        .try_for_each(|input| build_block(input, &data_sheet, &args))?;
+    commands::build_separate_blocks(&args, &data_sheet)?;
 
     Ok(())
 }
@@ -159,7 +115,8 @@ mod tests {
                     file: layout_path.to_string(),
                 };
 
-                build_block(&input, ds, &args_for_block).expect("build_block failed");
+                crate::commands::generate::build_block_single(&input, ds, &args_for_block)
+                    .expect("build_block_single failed");
                 let expected = format!("{}_{}_{}.hex", "PRE", blk, "SUF");
                 assert!(Path::new("out").join(expected).exists());
 
@@ -185,7 +142,8 @@ mod tests {
                         format: crate::output::args::OutputFormat::Mot,
                     },
                 };
-                build_block(&input, ds, &args_for_block_mot).expect("build_block failed");
+                crate::commands::generate::build_block_single(&input, ds, &args_for_block_mot)
+                    .expect("build_block_single failed");
                 let expected_mot = format!("{}_{}_{}.mot", "PRE", blk, "SUF");
                 assert!(Path::new("out").join(expected_mot).exists());
             }
