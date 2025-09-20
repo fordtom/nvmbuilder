@@ -20,6 +20,7 @@ start = 0xFFFFFFFF
 xor_out = 0xFFFFFFFF
 ref_in = true
 ref_out = true
+area = "data"
 
 [block.header]
 start_address = 0x80000
@@ -70,6 +71,7 @@ start = 0xFFFFFFFF
 xor_out = 0xFFFFFFFF
 ref_in = true
 ref_out = true
+area = "data"
 
 [block.header]
 start_address = 0x80000
@@ -97,7 +99,10 @@ bad.frac_to_u8 = { value = 1.5, type = "u8" }
     let ds = nvmbuilder::variant::DataSheet::new(&var_args).expect("datasheet loads");
 
     let res = block.build_bytestream(&ds, &cfg.settings, true);
-    assert!(res.is_err(), "strict mode should reject fractional float to int");
+    assert!(
+        res.is_err(),
+        "strict mode should reject fractional float to int"
+    );
 }
 
 #[test]
@@ -117,6 +122,7 @@ start = 0xFFFFFFFF
 xor_out = 0xFFFFFFFF
 ref_in = true
 ref_out = true
+area = "data"
 
 [block.header]
 start_address = 0x80000
@@ -144,6 +150,8 @@ bad.large_int_to_f64 = { value = 9007199254740993, type = "f64" }
     let ds = nvmbuilder::variant::DataSheet::new(&var_args).expect("datasheet loads");
 
     let res = block.build_bytestream(&ds, &cfg.settings, true);
-    assert!(res.is_err(), "strict mode should reject lossy int to f64 conversion");
+    assert!(
+        res.is_err(),
+        "strict mode should reject lossy int to f64 conversion"
+    );
 }
-

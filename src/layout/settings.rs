@@ -19,6 +19,14 @@ pub enum Endianness {
     Big,
 }
 
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum CrcArea {
+    #[serde(rename = "data")]
+    Data,
+    #[serde(rename = "block")]
+    Block,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CrcData {
     pub polynomial: u32,
@@ -26,6 +34,7 @@ pub struct CrcData {
     pub xor_out: u32,
     pub ref_in: bool,
     pub ref_out: bool,
+    pub area: CrcArea,
 }
 
 fn default_offset() -> u32 {

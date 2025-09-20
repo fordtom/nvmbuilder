@@ -3,7 +3,7 @@ pub mod checksum;
 
 use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
-use crate::layout::settings::{Endianness, Settings};
+use crate::layout::settings::{CrcArea, Endianness, Settings};
 use crate::output::args::OutputFormat;
 
 use bin_file::{BinFile, IHexFormat};
@@ -40,16 +40,7 @@ pub fn bytestream_to_hex_string(
         byte_swap_inplace(bytestream);
     }
 
-    let crc_val = checksum::calculate_crc(bytestream);
-
-    let mut crc_bytes = match settings.endianness {
-        Endianness::Big => crc_val.to_be_bytes(),
-        Endianness::Little => crc_val.to_le_bytes(),
-    };
-    if byte_swap {
-        byte_swap_inplace(&mut crc_bytes);
-    }
-
+    // Determine CRC location relative to current payload end
     let crc_offset = match &header.crc_location {
         CrcLocation::Address(address) => {
             let crc_offset = address.checked_sub(header.start_address).ok_or_else(|| {
@@ -81,13 +72,46 @@ pub fn bytestream_to_hex_string(
         ));
     }
 
+    let original_len = bytestream.len();
     let min_len = (crc_offset + 4) as usize;
-    let target_len = if pad_to_end {
+    let effective_pad_to_end = match settings.crc.area {
+        CrcArea::Data => pad_to_end,
+        CrcArea::Block => true, // override: always pad full block
+    };
+    let target_len = if effective_pad_to_end {
         header.length as usize
     } else {
         min_len
     };
     bytestream.resize(target_len, header.padding);
+
+    // Compute CRC based on selected area
+    let crc_val = match settings.crc.area {
+        CrcArea::Data => {
+            // CRC over payload only
+            checksum::calculate_crc(&bytestream[..original_len])
+        }
+        CrcArea::Block => {
+            // Zero CRC field then compute over entire block
+            let start = crc_offset as usize;
+            let end = start + 4;
+            let saved = bytestream[start..end].to_vec();
+            bytestream[start..end].fill(0);
+            let crc = checksum::calculate_crc(bytestream);
+            // Restore saved bytes; will be overwritten below with final CRC bytes
+            bytestream[start..end].copy_from_slice(&saved);
+            crc
+        }
+    };
+
+    let mut crc_bytes = match settings.endianness {
+        Endianness::Big => crc_val.to_be_bytes(),
+        Endianness::Little => crc_val.to_le_bytes(),
+    };
+    if byte_swap {
+        byte_swap_inplace(&mut crc_bytes);
+    }
+
     bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
 
     let hex_string = emit_hex(
@@ -163,7 +187,7 @@ mod tests {
     use super::*;
     use crate::layout::header::CrcLocation;
     use crate::layout::header::Header;
-    use crate::layout::settings::CrcData;
+    use crate::layout::settings::{CrcArea, CrcData};
     use crate::layout::settings::Endianness;
     use crate::layout::settings::Settings;
 
@@ -177,6 +201,7 @@ mod tests {
                 xor_out: 0xFFFF_FFFF,
                 ref_in: true,
                 ref_out: true,
+                area: CrcArea::Data,
             },
             byte_swap: false,
             pad_to_end: false,
