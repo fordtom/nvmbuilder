@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::fs;
 use std::path::Path;
 
@@ -77,4 +79,3 @@ pub fn assert_out_file_exists(block_name: &str, format: OutputFormat) {
     let expected = format!("{}_{}_{}.{}", "PRE", block_name, "SUF", ext);
     assert!(Path::new("out").join(expected).exists());
 }
-
