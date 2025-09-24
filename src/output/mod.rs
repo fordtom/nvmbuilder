@@ -12,12 +12,49 @@ use bin_file::{BinFile, IHexFormat};
 pub struct DataRange<'a> {
     pub start_address: u32,
     pub bytestream: &'a [u8],
+    pub crc_address: u32,
+    pub crc_bytestream: &'a [u8],
 }
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
     for chunk in bytes.chunks_exact_mut(2) {
         chunk.swap(0, 1);
     }
+}
+
+fn validate_crc_location(length: usize, header: &Header) -> Result<u32, NvmError> {
+    let crc_offset = match &header.crc_location {
+        CrcLocation::Address(address) => {
+            let crc_offset = address.checked_sub(header.start_address).ok_or_else(|| {
+                NvmError::HexOutputError("CRC address before block start.".to_string())
+            })?;
+
+            if crc_offset < length as u32 {
+                return Err(NvmError::HexOutputError(
+                    "CRC overlaps with payload.".to_string(),
+                ));
+            }
+
+            crc_offset
+        }
+        CrcLocation::Keyword(option) => match option.as_str() {
+            "end" => (length as u32 + 3) & !3,
+            _ => {
+                return Err(NvmError::HexOutputError(format!(
+                    "Invalid CRC location: {}",
+                    option
+                )));
+            }
+        },
+    };
+
+    if header.length < crc_offset + 4 {
+        return Err(NvmError::HexOutputError(
+            "CRC location would overrun block.".to_string(),
+        ));
+    }
+
+    Ok(crc_offset)
 }
 
 pub fn bytestream_to_hex_string(
@@ -41,68 +78,21 @@ pub fn bytestream_to_hex_string(
     }
 
     // Determine CRC location relative to current payload end
-    let crc_offset = match &header.crc_location {
-        CrcLocation::Address(address) => {
-            let crc_offset = address.checked_sub(header.start_address).ok_or_else(|| {
-                NvmError::HexOutputError("CRC address before block start.".to_string())
-            })?;
+    let crc_location = validate_crc_location(bytestream.len(), header)?;
 
-            if crc_offset < bytestream.len() as u32 {
-                return Err(NvmError::HexOutputError(
-                    "CRC overlaps with payload.".to_string(),
-                ));
-            }
-
-            crc_offset
-        }
-        CrcLocation::Keyword(option) => match option.as_str() {
-            "end" => bytestream.len() as u32,
-            _ => {
-                return Err(NvmError::HexOutputError(format!(
-                    "Invalid CRC location: {}",
-                    option
-                )));
-            }
-        },
-    };
-
-    if header.length < crc_offset + 4 {
-        return Err(NvmError::HexOutputError(
-            "CRC location would overrun block.".to_string(),
-        ));
+    // Padding for CRC alignment
+    if let CrcLocation::Keyword(_) = &header.crc_location {
+        bytestream.resize(crc_location as usize + 4, header.padding);
     }
 
-    let original_len = bytestream.len();
-    let min_len = (crc_offset + 4) as usize;
-    let effective_pad_to_end = match settings.crc.area {
-        CrcArea::Data => pad_to_end,
-        CrcArea::Block => true, // override: always pad full block
-    };
-    let target_len = if effective_pad_to_end {
-        header.length as usize
-    } else {
-        min_len
-    };
-    bytestream.resize(target_len, header.padding);
+    // Fill whole block if the CRC area is block
+    if settings.crc.area == CrcArea::Block {
+        bytestream.resize(header.length as usize, header.padding);
+        bytestream[crc_location as usize..(crc_location + 4) as usize].fill(0);
+    }
 
     // Compute CRC based on selected area
-    let crc_val = match settings.crc.area {
-        CrcArea::Data => {
-            // CRC over payload only
-            checksum::calculate_crc(&bytestream[..original_len])
-        }
-        CrcArea::Block => {
-            // Zero CRC field then compute over entire block
-            let start = crc_offset as usize;
-            let end = start + 4;
-            let saved = bytestream[start..end].to_vec();
-            bytestream[start..end].fill(0);
-            let crc = checksum::calculate_crc(bytestream);
-            // Restore saved bytes; will be overwritten below with final CRC bytes
-            bytestream[start..end].copy_from_slice(&saved);
-            crc
-        }
-    };
+    let crc_val = checksum::calculate_crc(bytestream);
 
     let mut crc_bytes = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
@@ -112,12 +102,17 @@ pub fn bytestream_to_hex_string(
         byte_swap_inplace(&mut crc_bytes);
     }
 
-    bytestream[crc_offset as usize..(crc_offset + 4) as usize].copy_from_slice(&crc_bytes);
+    // Resize to full block if pad_to_end is true
+    if pad_to_end {
+        bytestream.resize(header.length as usize, header.padding);
+    }
 
     let hex_string = emit_hex(
         &[DataRange {
             start_address: header.start_address + settings.virtual_offset,
             bytestream: bytestream.as_slice(),
+            crc_address: header.start_address + settings.virtual_offset + crc_location,
+            crc_bytestream: &crc_bytes,
         }],
         record_width,
         format,
@@ -132,21 +127,26 @@ fn emit_hex<'a>(
 ) -> Result<String, NvmError> {
     // Use bin_file to format output.
     let mut bf = BinFile::new();
+    let mut max_end: usize = 0;
+
     for range in ranges {
         bf.add_bytes(range.bytestream, Some(range.start_address as usize), false)
             .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+        bf.add_bytes(range.crc_bytestream, Some(range.crc_address as usize), true)
+            .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+
+        let end = (range.start_address as usize).saturating_add(range.bytestream.len());
+        if end > max_end {
+            max_end = end;
+        }
+        let end = (range.crc_address as usize).saturating_add(range.crc_bytestream.len());
+        if end > max_end {
+            max_end = end;
+        }
     }
 
     match format {
         OutputFormat::Hex => {
-            // Select format based on the highest end address across ranges
-            let mut max_end: usize = 0;
-            for range in ranges {
-                let end = (range.start_address as usize).saturating_add(range.bytestream.len());
-                if end > max_end {
-                    max_end = end;
-                }
-            }
             let ihex_format = if max_end <= 0x1_0000 {
                 IHexFormat::IHex16
             } else {
@@ -159,14 +159,6 @@ fn emit_hex<'a>(
         }
         OutputFormat::Mot => {
             use bin_file::SRecordAddressLength;
-            // Auto-select SREC address length based on range, mimicking IHex selection
-            let mut max_end: usize = 0;
-            for range in ranges {
-                let end = (range.start_address as usize).saturating_add(range.bytestream.len());
-                if end > max_end {
-                    max_end = end;
-                }
-            }
             let addr_len = if max_end <= 0x1_0000 {
                 SRecordAddressLength::Length16
             } else if max_end <= 0x100_0000 {
@@ -187,9 +179,9 @@ mod tests {
     use super::*;
     use crate::layout::header::CrcLocation;
     use crate::layout::header::Header;
-    use crate::layout::settings::{CrcArea, CrcData};
     use crate::layout::settings::Endianness;
     use crate::layout::settings::Settings;
+    use crate::layout::settings::{CrcArea, CrcData};
 
     fn sample_settings() -> Settings {
         Settings {
