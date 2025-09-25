@@ -1,11 +1,11 @@
 use clap::Parser;
 
 use nvmbuilder::args::Args;
+use nvmbuilder::commands;
 use nvmbuilder::error::*;
 use nvmbuilder::layout;
 use nvmbuilder::output;
 use nvmbuilder::variant::DataSheet;
-use nvmbuilder::commands;
 
 fn main() -> Result<(), NvmError> {
     let args = Args::parse();

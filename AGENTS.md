@@ -6,6 +6,8 @@ Nvmbuilder is an embedded development tool that works with layout files (toml/ya
 
 ## Tools
 
+The development environment uses Nix. You may have to run cargo commands via nix develop.
+
 Always run `cargo test` as a final check after making any changes.
 
 Remember to use formatting tools to clean up your code once finished.
