@@ -82,7 +82,7 @@ pub fn bytestream_to_hex_string(
 
     // Padding for CRC alignment
     if let CrcLocation::Keyword(_) = &header.crc_location {
-        bytestream.resize(crc_location as usize + 4, header.padding);
+        bytestream.resize(crc_location as usize, header.padding);
     }
 
     // Fill whole block if the CRC area is block
@@ -216,7 +216,7 @@ mod tests {
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(
+        let hex = bytestream_to_hex_string(
             &mut bytestream,
             &header,
             &settings,
@@ -227,10 +227,27 @@ mod tests {
         )
         .expect("hex generation failed");
 
-        // 4 bytes payload + 4 bytes CRC
-        assert_eq!(bytestream.len(), 8);
-    }
+        // No in-memory resize when pad_to_end=false; CRC is emitted separately
+        assert_eq!(bytestream.len(), 4);
 
+        // And the emitted hex should contain the CRC bytes (endianness applied)
+        let crc_location = super::validate_crc_location(4usize, &header).expect("crc loc");
+        assert_eq!(crc_location as usize, 4, "crc should follow payload end");
+        let crc_val = checksum::calculate_crc(&bytestream[..crc_location as usize]);
+        let crc_bytes = match settings.endianness {
+            Endianness::Big => crc_val.to_be_bytes(),
+            Endianness::Little => crc_val.to_le_bytes(),
+        };
+        // No byte swap in this test
+        let expected_crc_ascii = crc_bytes
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<String>();
+        assert!(
+            hex.to_uppercase().contains(&expected_crc_ascii),
+            "hex should contain CRC bytes"
+        );
+    }
     #[test]
     fn pad_to_end_true_resizes_to_full_block() {
         let settings = sample_settings();
