@@ -20,7 +20,10 @@ fn main() -> Result<(), NvmError> {
     std::fs::create_dir_all(&args.output.out)
         .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
 
-    commands::build_separate_blocks(&args, &data_sheet)?;
+    match args.output.combined {
+        true => commands::build_single_file(&args, &data_sheet)?,
+        false => commands::build_separate_blocks(&args, &data_sheet)?,
+    }
 
     Ok(())
 }

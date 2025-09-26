@@ -49,4 +49,7 @@ pub struct OutputArgs {
         help = "Output format: hex or mot",
     )]
     pub format: OutputFormat,
+
+    #[arg(long, help = "Emit a single combined file instead of one per block")]
+    pub combined: bool,
 }

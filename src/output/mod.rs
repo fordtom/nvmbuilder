@@ -9,11 +9,11 @@ use crate::output::args::OutputFormat;
 use bin_file::{BinFile, IHexFormat};
 
 #[derive(Debug, Clone)]
-pub struct DataRange<'a> {
+pub struct DataRange {
     pub start_address: u32,
-    pub bytestream: &'a [u8],
+    pub bytestream: Vec<u8>,
     pub crc_address: u32,
-    pub crc_bytestream: &'a [u8],
+    pub crc_bytestream: Vec<u8>,
 }
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
@@ -57,15 +57,13 @@ fn validate_crc_location(length: usize, header: &Header) -> Result<u32, NvmError
     Ok(crc_offset)
 }
 
-pub fn bytestream_to_hex_string(
-    bytestream: &mut Vec<u8>,
+pub fn bytestream_to_datarange(
+    mut bytestream: Vec<u8>,
     header: &Header,
     settings: &Settings,
     byte_swap: bool,
-    record_width: usize,
     pad_to_end: bool,
-    format: OutputFormat,
-) -> Result<String, NvmError> {
+) -> Result<DataRange, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
             "Bytestream length exceeds block length.".to_string(),
@@ -74,7 +72,7 @@ pub fn bytestream_to_hex_string(
 
     // Apply optional byte swap across the entire stream before CRC
     if byte_swap {
-        byte_swap_inplace(bytestream);
+        byte_swap_inplace(bytestream.as_mut_slice());
     }
 
     // Determine CRC location relative to current payload end
@@ -92,7 +90,7 @@ pub fn bytestream_to_hex_string(
     }
 
     // Compute CRC based on selected area
-    let crc_val = checksum::calculate_crc(bytestream);
+    let crc_val = checksum::calculate_crc(&bytestream);
 
     let mut crc_bytes = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
@@ -107,21 +105,16 @@ pub fn bytestream_to_hex_string(
         bytestream.resize(header.length as usize, header.padding);
     }
 
-    let hex_string = emit_hex(
-        &[DataRange {
-            start_address: header.start_address + settings.virtual_offset,
-            bytestream: bytestream.as_slice(),
-            crc_address: header.start_address + settings.virtual_offset + crc_location,
-            crc_bytestream: &crc_bytes,
-        }],
-        record_width,
-        format,
-    )?;
-    Ok(hex_string)
+    Ok(DataRange {
+        start_address: header.start_address + settings.virtual_offset,
+        bytestream,
+        crc_address: header.start_address + settings.virtual_offset + crc_location,
+        crc_bytestream: crc_bytes.to_vec(),
+    })
 }
 
-fn emit_hex<'a>(
-    ranges: &[DataRange<'a>],
+pub fn emit_hex(
+    ranges: &[DataRange],
     record_width: usize,
     format: OutputFormat,
 ) -> Result<String, NvmError> {
@@ -130,10 +123,18 @@ fn emit_hex<'a>(
     let mut max_end: usize = 0;
 
     for range in ranges {
-        bf.add_bytes(range.bytestream, Some(range.start_address as usize), false)
-            .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
-        bf.add_bytes(range.crc_bytestream, Some(range.crc_address as usize), true)
-            .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+        bf.add_bytes(
+            range.bytestream.as_slice(),
+            Some(range.start_address as usize),
+            false,
+        )
+        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+        bf.add_bytes(
+            range.crc_bytestream.as_slice(),
+            Some(range.crc_address as usize),
+            true,
+        )
+        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
 
         let end = (range.start_address as usize).saturating_add(range.bytestream.len());
         if end > max_end {
@@ -215,17 +216,11 @@ mod tests {
         checksum::init_crc_algorithm(&settings.crc);
         let header = sample_header(16);
 
-        let mut bytestream = vec![1u8, 2, 3, 4];
-        let hex = bytestream_to_hex_string(
-            &mut bytestream,
-            &header,
-            &settings,
-            false,
-            16,
-            false,
-            crate::output::args::OutputFormat::Hex,
-        )
-        .expect("hex generation failed");
+        let bytestream = vec![1u8, 2, 3, 4];
+        let dr = bytestream_to_datarange(bytestream.clone(), &header, &settings, false, false)
+            .expect("data range generation failed");
+        let hex = emit_hex(&[dr], 16, crate::output::args::OutputFormat::Hex)
+            .expect("hex generation failed");
 
         // No in-memory resize when pad_to_end=false; CRC is emitted separately
         assert_eq!(bytestream.len(), 4);
@@ -254,18 +249,10 @@ mod tests {
         checksum::init_crc_algorithm(&settings.crc);
         let header = sample_header(32);
 
-        let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(
-            &mut bytestream,
-            &header,
-            &settings,
-            false,
-            16,
-            true,
-            crate::output::args::OutputFormat::Hex,
-        )
-        .expect("hex generation failed");
+        let bytestream = vec![1u8, 2, 3, 4];
+        let dr = bytestream_to_datarange(bytestream, &header, &settings, false, true)
+            .expect("data range generation failed");
 
-        assert_eq!(bytestream.len(), header.length as usize);
+        assert_eq!(dr.bytestream.len(), header.length as usize);
     }
 }

@@ -1,4 +1,4 @@
-use nvmbuilder::commands::generate::build_block_single;
+use nvmbuilder::commands;
 
 #[path = "common/mod.rs"]
 mod common;
@@ -21,8 +21,9 @@ fn smoke_build_examples_all_formats_and_options() {
             continue;
         };
 
+        let cfg = nvmbuilder::layout::load_layout(layout_path).expect("layout loads");
+
         for &blk in &blocks {
-            let cfg = nvmbuilder::layout::load_layout(layout_path).expect("layout loads");
             if !cfg.blocks.contains_key(blk) {
                 continue;
             }
@@ -37,7 +38,7 @@ fn smoke_build_examples_all_formats_and_options() {
                 name: blk.to_string(),
                 file: layout_path.to_string(),
             };
-            build_block_single(&input, &ds, &args_hex).expect("build hex");
+            commands::generate::build_block_single(&input, &ds, &args_hex).expect("build hex");
             common::assert_out_file_exists(blk, nvmbuilder::output::args::OutputFormat::Hex);
 
             // Mot
@@ -46,8 +47,27 @@ fn smoke_build_examples_all_formats_and_options() {
                 blk,
                 nvmbuilder::output::args::OutputFormat::Mot,
             );
-            build_block_single(&input, &ds, &args_mot).expect("build mot");
+            commands::generate::build_block_single(&input, &ds, &args_mot).expect("build mot");
             common::assert_out_file_exists(blk, nvmbuilder::output::args::OutputFormat::Mot);
+        }
+
+        let block_inputs = cfg
+            .blocks
+            .keys()
+            .map(|name| nvmbuilder::layout::args::BlockNames {
+                name: name.clone(),
+                file: layout_path.to_string(),
+            })
+            .collect::<Vec<_>>();
+
+        if !block_inputs.is_empty() {
+            let args_single = common::build_args_for_layouts(
+                block_inputs,
+                nvmbuilder::output::args::OutputFormat::Hex,
+            );
+
+            commands::build_single_file(&args_single, &ds).expect("build combined");
+            common::assert_out_file_exists("combined", nvmbuilder::output::args::OutputFormat::Hex);
         }
     }
 }
