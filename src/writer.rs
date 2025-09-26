@@ -18,9 +18,7 @@ pub fn write_output(args: &OutputArgs, block_name: &str, contents: &str) -> Resu
     };
     let out_filename = format!("{}.{}", name_parts.join("_"), ext);
     let out_path = Path::new(&args.out).join(out_filename);
-    std::fs::write(out_path, contents).map_err(|e| {
-        NvmError::FileError(format!("failed to write block {}: {}", block_name, e))
-    })?;
+    std::fs::write(out_path, contents)
+        .map_err(|e| NvmError::FileError(format!("failed to write block {}: {}", block_name, e)))?;
     Ok(())
 }
-

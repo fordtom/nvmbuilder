@@ -1,6 +1,6 @@
 use crate::layout::args::LayoutArgs;
-use crate::variant::args::VariantArgs;
 use crate::output::args::OutputArgs;
+use crate::variant::args::VariantArgs;
 use clap::Parser;
 
 // Top-level CLI parser. Sub-sections are flattened from sub-Args structs.

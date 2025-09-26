@@ -95,7 +95,9 @@ impl LeafEntry {
                 let value = data_sheet.retrieve_single_value(name)?;
                 value.to_bytes(self.scalar_type, endianness, strict)
             }
-            EntrySource::Value(ValueSource::Single(v)) => v.to_bytes(self.scalar_type, endianness, strict),
+            EntrySource::Value(ValueSource::Single(v)) => {
+                v.to_bytes(self.scalar_type, endianness, strict)
+            }
             EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
                 "Single value expected for scalar type.".to_string(),
             )),

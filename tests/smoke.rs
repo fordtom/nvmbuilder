@@ -28,16 +28,26 @@ fn smoke_build_examples_all_formats_and_options() {
             }
 
             // Hex
-            let args_hex = common::build_args(layout_path, blk, nvmbuilder::output::args::OutputFormat::Hex);
-            let input = nvmbuilder::layout::args::BlockNames { name: blk.to_string(), file: layout_path.to_string() };
+            let args_hex = common::build_args(
+                layout_path,
+                blk,
+                nvmbuilder::output::args::OutputFormat::Hex,
+            );
+            let input = nvmbuilder::layout::args::BlockNames {
+                name: blk.to_string(),
+                file: layout_path.to_string(),
+            };
             build_block_single(&input, &ds, &args_hex).expect("build hex");
             common::assert_out_file_exists(blk, nvmbuilder::output::args::OutputFormat::Hex);
 
             // Mot
-            let args_mot = common::build_args(layout_path, blk, nvmbuilder::output::args::OutputFormat::Mot);
+            let args_mot = common::build_args(
+                layout_path,
+                blk,
+                nvmbuilder::output::args::OutputFormat::Mot,
+            );
             build_block_single(&input, &ds, &args_mot).expect("build mot");
             common::assert_out_file_exists(blk, nvmbuilder::output::args::OutputFormat::Mot);
         }
     }
 }
-

@@ -12,10 +12,7 @@ pub fn warn_duplicate_names(names: &[String]) {
             continue;
         }
         // +2 to convert 0-based data row index to 1-based Excel row index with header offset
-        index_map
-            .entry(key.to_string())
-            .or_default()
-            .push(idx + 2);
+        index_map.entry(key.to_string()).or_default().push(idx + 2);
     }
 
     let mut duplicates: Vec<(String, Vec<usize>)> = index_map
@@ -37,4 +34,3 @@ pub fn warn_duplicate_names(names: &[String]) {
         }
     }
 }
-
