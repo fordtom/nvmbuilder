@@ -46,6 +46,7 @@ pub fn build_args(layout_path: &str, block_name: &str, format: OutputFormat) -> 
             suffix: "SUF".to_string(),
             record_width: 32,
             format,
+            combined: false,
         },
     }
 }
@@ -98,6 +99,7 @@ pub fn build_args_for_layouts(layouts: Vec<BlockNames>, format: OutputFormat) ->
             suffix: "SUF".to_string(),
             record_width: 32,
             format,
+            combined: true,
         },
     }
 }

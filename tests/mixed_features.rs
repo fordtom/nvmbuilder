@@ -105,6 +105,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             suffix: "A".to_string(),
             record_width: 64,
             format: OutputFormat::Hex,
+            combined: false,
         },
     };
     build_block_single(
@@ -134,6 +135,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             suffix: "B".to_string(),
             record_width: 16,
             format: OutputFormat::Mot,
+            combined: false,
         },
     };
     build_block_single(
@@ -163,6 +165,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             suffix: "C".to_string(),
             record_width: 16,
             format: OutputFormat::Hex,
+            combined: false,
         },
     };
     build_block_single(
@@ -192,6 +195,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             suffix: "D".to_string(),
             record_width: 64,
             format: OutputFormat::Mot,
+            combined: false,
         },
     };
     build_block_single(
