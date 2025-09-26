@@ -4,8 +4,8 @@ use crate::args::Args;
 use crate::error::NvmError;
 use crate::layout;
 use crate::output;
-use crate::writer::write_output;
 use crate::variant::DataSheet;
+use crate::writer::write_output;
 use rayon::prelude::*;
 
 pub fn build_separate_blocks(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmError> {
@@ -16,7 +16,6 @@ pub fn build_separate_blocks(args: &Args, data_sheet: &DataSheet) -> Result<(), 
 }
 
 pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmError> {
-    let mut payloads: Vec<Vec<u8>> = Vec::new();
     let mut ranges = Vec::new();
 
     for input in &args.layout.blocks {
@@ -27,13 +26,11 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmE
             .get(&input.name)
             .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
 
-        let mut bytestream =
+        let bytestream =
             block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
-        payloads.push(bytestream);
-        let bs_ref = payloads.last_mut().expect("payloads not empty");
-        let dr = output::bytestream_to_hex_string(
-            bs_ref,
+        let dr = output::bytestream_to_datarange(
+            bytestream,
             &block.header,
             &layout.settings,
             layout.settings.byte_swap,
@@ -42,7 +39,11 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmE
         ranges.push(dr);
     }
 
-    let hex_string = output::emit_hex(&ranges, args.output.record_width as usize, args.output.format)?;
+    let hex_string = output::emit_hex(
+        &ranges,
+        args.output.record_width as usize,
+        args.output.format,
+    )?;
 
     write_output(&args.output, "combined", &hex_string)
 }

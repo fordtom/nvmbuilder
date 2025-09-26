@@ -79,3 +79,25 @@ pub fn assert_out_file_exists(block_name: &str, format: OutputFormat) {
     let expected = format!("{}_{}_{}.{}", "PRE", block_name, "SUF", ext);
     assert!(Path::new("out").join(expected).exists());
 }
+
+pub fn build_args_for_layouts(layouts: Vec<BlockNames>, format: OutputFormat) -> Args {
+    Args {
+        layout: LayoutArgs {
+            blocks: layouts,
+            strict: false,
+        },
+        variant: variant::args::VariantArgs {
+            xlsx: "examples/data.xlsx".to_string(),
+            variant: None,
+            debug: false,
+            main_sheet: "Main".to_string(),
+        },
+        output: OutputArgs {
+            out: "out".to_string(),
+            prefix: "PRE".to_string(),
+            suffix: "SUF".to_string(),
+            record_width: 32,
+            format,
+        },
+    }
+}

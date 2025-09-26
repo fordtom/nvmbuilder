@@ -17,11 +17,10 @@ pub fn build_block_single(
         .get(&input.name)
         .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
 
-    let mut bytestream =
-        block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
+    let bytestream = block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
-    let data_range = crate::output::bytestream_to_hex_string(
-        &mut bytestream,
+    let data_range = crate::output::bytestream_to_datarange(
+        bytestream,
         &block.header,
         &layout.settings,
         layout.settings.byte_swap,
