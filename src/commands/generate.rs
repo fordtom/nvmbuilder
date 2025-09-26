@@ -20,13 +20,17 @@ pub fn build_block_single(
     let mut bytestream =
         block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
-    let hex_string = crate::output::bytestream_to_hex_string(
+    let data_range = crate::output::bytestream_to_hex_string(
         &mut bytestream,
         &block.header,
         &layout.settings,
         layout.settings.byte_swap,
-        args.output.record_width as usize,
         layout.settings.pad_to_end,
+    )?;
+
+    let hex_string = crate::output::emit_hex(
+        &[data_range],
+        args.output.record_width as usize,
         args.output.format,
     )?;
 

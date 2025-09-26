@@ -13,7 +13,7 @@ pub struct DataRange<'a> {
     pub start_address: u32,
     pub bytestream: &'a [u8],
     pub crc_address: u32,
-    pub crc_bytestream: &'a [u8],
+    pub crc_bytestream: Vec<u8>,
 }
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
@@ -62,10 +62,8 @@ pub fn bytestream_to_hex_string(
     header: &Header,
     settings: &Settings,
     byte_swap: bool,
-    record_width: usize,
     pad_to_end: bool,
-    format: OutputFormat,
-) -> Result<String, NvmError> {
+) -> Result<DataRange<'_>, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
             "Bytestream length exceeds block length.".to_string(),
@@ -107,20 +105,15 @@ pub fn bytestream_to_hex_string(
         bytestream.resize(header.length as usize, header.padding);
     }
 
-    let hex_string = emit_hex(
-        &[DataRange {
-            start_address: header.start_address + settings.virtual_offset,
-            bytestream: bytestream.as_slice(),
-            crc_address: header.start_address + settings.virtual_offset + crc_location,
-            crc_bytestream: &crc_bytes,
-        }],
-        record_width,
-        format,
-    )?;
-    Ok(hex_string)
+    Ok(DataRange {
+        start_address: header.start_address + settings.virtual_offset,
+        bytestream: bytestream.as_slice(),
+        crc_address: header.start_address + settings.virtual_offset + crc_location,
+        crc_bytestream: crc_bytes.to_vec(),
+    })
 }
 
-fn emit_hex<'a>(
+pub fn emit_hex<'a>(
     ranges: &[DataRange<'a>],
     record_width: usize,
     format: OutputFormat,
@@ -132,7 +125,7 @@ fn emit_hex<'a>(
     for range in ranges {
         bf.add_bytes(range.bytestream, Some(range.start_address as usize), false)
             .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
-        bf.add_bytes(range.crc_bytestream, Some(range.crc_address as usize), true)
+        bf.add_bytes(range.crc_bytestream.as_slice(), Some(range.crc_address as usize), true)
             .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
 
         let end = (range.start_address as usize).saturating_add(range.bytestream.len());
@@ -216,16 +209,16 @@ mod tests {
         let header = sample_header(16);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let hex = bytestream_to_hex_string(
+        let dr = bytestream_to_hex_string(
             &mut bytestream,
             &header,
             &settings,
             false,
-            16,
             false,
-            crate::output::args::OutputFormat::Hex,
         )
-        .expect("hex generation failed");
+        .expect("data range generation failed");
+        let hex = emit_hex(&[dr], 16, crate::output::args::OutputFormat::Hex)
+            .expect("hex generation failed");
 
         // No in-memory resize when pad_to_end=false; CRC is emitted separately
         assert_eq!(bytestream.len(), 4);
@@ -255,16 +248,14 @@ mod tests {
         let header = sample_header(32);
 
         let mut bytestream = vec![1u8, 2, 3, 4];
-        let _hex = bytestream_to_hex_string(
+        let _dr = bytestream_to_hex_string(
             &mut bytestream,
             &header,
             &settings,
             false,
-            16,
             true,
-            crate::output::args::OutputFormat::Hex,
         )
-        .expect("hex generation failed");
+        .expect("data range generation failed");
 
         assert_eq!(bytestream.len(), header.length as usize);
     }
