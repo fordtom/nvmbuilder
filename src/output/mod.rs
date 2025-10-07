@@ -72,9 +72,6 @@ pub fn bytestream_to_datarange(
         ));
     }
 
-    let used_size = bytestream.len() as u32;
-    let allocated_size = header.length;
-
     // Apply optional byte swap across the entire stream before CRC
     if byte_swap {
         byte_swap_inplace(bytestream.as_mut_slice());
@@ -82,6 +79,9 @@ pub fn bytestream_to_datarange(
 
     // Determine CRC location relative to current payload end
     let crc_location = validate_crc_location(bytestream.len(), header)?;
+
+    let used_size = (bytestream.len() + 4) as u32;
+    let allocated_size = header.length;
 
     // Padding for CRC alignment
     if let CrcLocation::Keyword(_) = &header.crc_location {
