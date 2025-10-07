@@ -5,6 +5,7 @@ use nvmbuilder::commands;
 use nvmbuilder::error::*;
 use nvmbuilder::layout;
 use nvmbuilder::output;
+use nvmbuilder::printer;
 use nvmbuilder::variant::DataSheet;
 
 fn main() -> Result<(), NvmError> {
@@ -20,9 +21,17 @@ fn main() -> Result<(), NvmError> {
     std::fs::create_dir_all(&args.output.out)
         .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
 
-    match args.output.combined {
+    let stats = match args.output.combined {
         true => commands::build_single_file(&args, &data_sheet)?,
         false => commands::build_separate_blocks(&args, &data_sheet)?,
+    };
+
+    if !args.output.quiet {
+        if args.output.stats {
+            printer::print_detailed(&stats);
+        } else {
+            printer::print_summary(&stats);
+        }
     }
 
     Ok(())

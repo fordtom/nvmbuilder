@@ -14,6 +14,8 @@ pub struct DataRange {
     pub bytestream: Vec<u8>,
     pub crc_address: u32,
     pub crc_bytestream: Vec<u8>,
+    pub used_size: u32,
+    pub allocated_size: u32,
 }
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
@@ -70,6 +72,9 @@ pub fn bytestream_to_datarange(
         ));
     }
 
+    let used_size = bytestream.len() as u32;
+    let allocated_size = header.length;
+
     // Apply optional byte swap across the entire stream before CRC
     if byte_swap {
         byte_swap_inplace(bytestream.as_mut_slice());
@@ -110,6 +115,8 @@ pub fn bytestream_to_datarange(
         bytestream,
         crc_address: header.start_address + settings.virtual_offset + crc_location,
         crc_bytestream: crc_bytes.to_vec(),
+        used_size,
+        allocated_size,
     })
 }
 
