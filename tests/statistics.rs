@@ -93,7 +93,6 @@ fn test_space_efficiency_calculation() {
         start_address: 0x1000,
         allocated_size: 100,
         used_size: 80,
-        crc_address: 0x1064,
         crc_value: 0x12345678,
     });
 
@@ -102,7 +101,6 @@ fn test_space_efficiency_calculation() {
         start_address: 0x2000,
         allocated_size: 200,
         used_size: 120,
-        crc_address: 0x20C8,
         crc_value: 0x9ABCDEF0,
     });
 
@@ -166,7 +164,6 @@ fn test_space_efficiency_edge_cases() {
         start_address: 0x1000,
         allocated_size: 100,
         used_size: 100,
-        crc_address: 0x1064,
         crc_value: 0x12345678,
     });
 

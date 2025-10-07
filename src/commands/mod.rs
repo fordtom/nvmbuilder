@@ -15,7 +15,6 @@ pub struct BlockStat {
     pub start_address: u32,
     pub allocated_size: u32,
     pub used_size: u32,
-    pub crc_address: u32,
     pub crc_value: u32,
 }
 
@@ -122,7 +121,6 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildSta
             start_address: dr.start_address,
             allocated_size: dr.allocated_size,
             used_size: dr.used_size,
-            crc_address: dr.crc_address,
             crc_value,
         });
 

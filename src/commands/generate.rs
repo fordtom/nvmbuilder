@@ -57,7 +57,6 @@ pub fn build_block_single(
         start_address: data_range.start_address,
         allocated_size: data_range.allocated_size,
         used_size: data_range.used_size,
-        crc_address: data_range.crc_address,
         crc_value,
     })
 }
