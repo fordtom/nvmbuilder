@@ -65,6 +65,7 @@ pub fn bytestream_to_datarange(
     settings: &Settings,
     byte_swap: bool,
     pad_to_end: bool,
+    padding_bytes: u32,
 ) -> Result<DataRange, NvmError> {
     if bytestream.len() > header.length as usize {
         return Err(NvmError::HexOutputError(
@@ -80,7 +81,7 @@ pub fn bytestream_to_datarange(
     // Determine CRC location relative to current payload end
     let crc_location = validate_crc_location(bytestream.len(), header)?;
 
-    let used_size = (bytestream.len() + 4) as u32;
+    let used_size = (bytestream.len() + 4) as u32 - padding_bytes;
     let allocated_size = header.length;
 
     // Padding for CRC alignment
@@ -224,7 +225,7 @@ mod tests {
         let header = sample_header(16);
 
         let bytestream = vec![1u8, 2, 3, 4];
-        let dr = bytestream_to_datarange(bytestream.clone(), &header, &settings, false, false)
+        let dr = bytestream_to_datarange(bytestream.clone(), &header, &settings, false, false, 0)
             .expect("data range generation failed");
         let hex = emit_hex(&[dr], 16, crate::output::args::OutputFormat::Hex)
             .expect("hex generation failed");
@@ -257,7 +258,7 @@ mod tests {
         let header = sample_header(32);
 
         let bytestream = vec![1u8, 2, 3, 4];
-        let dr = bytestream_to_datarange(bytestream, &header, &settings, false, true)
+        let dr = bytestream_to_datarange(bytestream, &header, &settings, false, true, 0)
             .expect("data range generation failed");
 
         assert_eq!(dr.bytestream.len(), header.length as usize);
