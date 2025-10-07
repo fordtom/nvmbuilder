@@ -1,4 +1,5 @@
 pub mod generate;
+pub mod stats;
 
 use crate::args::Args;
 use crate::error::NvmError;
@@ -7,17 +8,36 @@ use crate::output;
 use crate::variant::DataSheet;
 use crate::writer::write_output;
 use rayon::prelude::*;
+use stats::{BlockStat, BuildStats};
+use std::time::Instant;
 
-pub fn build_separate_blocks(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmError> {
-    args.layout
+pub fn build_separate_blocks(args: &Args, data_sheet: &DataSheet) -> Result<BuildStats, NvmError> {
+    let start_time = Instant::now();
+
+    let block_stats: Result<Vec<BlockStat>, NvmError> = args
+        .layout
         .blocks
         .par_iter()
-        .try_for_each(|input| generate::build_block_single(input, data_sheet, args))
+        .map(|input| generate::build_block_single(input, data_sheet, args))
+        .collect();
+
+    let block_stats = block_stats?;
+
+    let mut stats = BuildStats::new();
+    for stat in block_stats {
+        stats.add_block(stat);
+    }
+    stats.total_duration = start_time.elapsed();
+
+    Ok(stats)
 }
 
-pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmError> {
+pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildStats, NvmError> {
+    let start_time = Instant::now();
+
     let mut ranges = Vec::new();
     let mut block_ranges: Vec<(String, u32, u32)> = Vec::new();
+    let mut stats = BuildStats::new();
 
     for input in &args.layout.blocks {
         let layout = layout::load_layout(&input.file)?;
@@ -37,6 +57,30 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmE
             layout.settings.byte_swap,
             layout.settings.pad_to_end,
         )?;
+
+        let crc_value = match layout.settings.endianness {
+            layout::settings::Endianness::Big => u32::from_be_bytes([
+                dr.crc_bytestream[0],
+                dr.crc_bytestream[1],
+                dr.crc_bytestream[2],
+                dr.crc_bytestream[3],
+            ]),
+            layout::settings::Endianness::Little => u32::from_le_bytes([
+                dr.crc_bytestream[0],
+                dr.crc_bytestream[1],
+                dr.crc_bytestream[2],
+                dr.crc_bytestream[3],
+            ]),
+        };
+
+        stats.add_block(BlockStat {
+            name: input.name.clone(),
+            start_address: dr.start_address,
+            allocated_size: dr.allocated_size,
+            used_size: dr.used_size,
+            crc_value,
+        });
+
         ranges.push(dr);
 
         let start = block.header.start_address + layout.settings.virtual_offset;
@@ -78,5 +122,9 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<(), NvmE
         args.output.format,
     )?;
 
-    write_output(&args.output, "combined", &hex_string)
+    write_output(&args.output, "combined", &hex_string)?;
+
+    stats.total_duration = start_time.elapsed();
+
+    Ok(stats)
 }

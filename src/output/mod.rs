@@ -14,6 +14,8 @@ pub struct DataRange {
     pub bytestream: Vec<u8>,
     pub crc_address: u32,
     pub crc_bytestream: Vec<u8>,
+    pub used_size: u32,
+    pub allocated_size: u32,
 }
 
 fn byte_swap_inplace(bytes: &mut [u8]) {
@@ -78,6 +80,9 @@ pub fn bytestream_to_datarange(
     // Determine CRC location relative to current payload end
     let crc_location = validate_crc_location(bytestream.len(), header)?;
 
+    let used_size = (bytestream.len() + 4) as u32;
+    let allocated_size = header.length;
+
     // Padding for CRC alignment
     if let CrcLocation::Keyword(_) = &header.crc_location {
         bytestream.resize(crc_location as usize, header.padding);
@@ -92,7 +97,7 @@ pub fn bytestream_to_datarange(
     // Compute CRC based on selected area
     let crc_val = checksum::calculate_crc(&bytestream);
 
-    let mut crc_bytes = match settings.endianness {
+    let mut crc_bytes: [u8; 4] = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
         Endianness::Little => crc_val.to_le_bytes(),
     };
@@ -110,6 +115,8 @@ pub fn bytestream_to_datarange(
         bytestream,
         crc_address: header.start_address + settings.virtual_offset + crc_location,
         crc_bytestream: crc_bytes.to_vec(),
+        used_size,
+        allocated_size,
     })
 }
 

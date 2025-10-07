@@ -52,4 +52,10 @@ pub struct OutputArgs {
 
     #[arg(long, help = "Emit a single combined file instead of one per block")]
     pub combined: bool,
+
+    #[arg(long, help = "Show detailed build statistics")]
+    pub stats: bool,
+
+    #[arg(long, help = "Suppress all output except errors")]
+    pub quiet: bool,
 }
