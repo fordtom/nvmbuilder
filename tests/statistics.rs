@@ -31,7 +31,6 @@ fn test_block_stat_collection() {
         commands::generate::build_block_single(&input, &ds, &args).expect("build should succeed");
 
     assert_eq!(block_stat.name, "block");
-    assert!(block_stat.start_address > 0 || block_stat.start_address == 0);
     assert!(block_stat.allocated_size > 0);
     assert!(block_stat.used_size > 0);
     assert!(block_stat.used_size <= block_stat.allocated_size);

@@ -30,7 +30,7 @@ pub fn build_block_single(
     )?;
 
     let hex_string = crate::output::emit_hex(
-        &[data_range.clone()],
+        std::slice::from_ref(&data_range),
         args.output.record_width as usize,
         args.output.format,
     )?;

@@ -97,7 +97,7 @@ pub fn bytestream_to_datarange(
     // Compute CRC based on selected area
     let crc_val = checksum::calculate_crc(&bytestream);
 
-    let mut crc_bytes = match settings.endianness {
+    let mut crc_bytes: [u8; 4] = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
         Endianness::Little => crc_val.to_le_bytes(),
     };

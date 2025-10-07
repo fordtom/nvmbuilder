@@ -18,6 +18,12 @@ pub struct BuildStats {
     pub block_stats: Vec<BlockStat>,
 }
 
+impl Default for BuildStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BuildStats {
     pub fn new() -> Self {
         Self {
