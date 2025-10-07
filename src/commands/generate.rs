@@ -1,5 +1,5 @@
 use crate::args::Args;
-use crate::commands::BlockStat;
+use crate::commands::stats::BlockStat;
 use crate::error::NvmError;
 use crate::layout;
 use crate::layout::args::BlockNames;

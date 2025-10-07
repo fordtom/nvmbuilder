@@ -1,4 +1,7 @@
-use nvmbuilder::commands::{self, BlockStat, BuildStats};
+use nvmbuilder::commands::{
+    self,
+    stats::{BlockStat, BuildStats},
+};
 
 #[path = "common/mod.rs"]
 mod common;

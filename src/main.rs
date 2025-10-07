@@ -5,8 +5,8 @@ use nvmbuilder::commands;
 use nvmbuilder::error::*;
 use nvmbuilder::layout;
 use nvmbuilder::output;
-use nvmbuilder::printer;
 use nvmbuilder::variant::DataSheet;
+use nvmbuilder::visuals;
 
 fn main() -> Result<(), NvmError> {
     let args = Args::parse();
@@ -28,9 +28,9 @@ fn main() -> Result<(), NvmError> {
 
     if !args.output.quiet {
         if args.output.stats {
-            printer::print_detailed(&stats);
+            visuals::print_detailed(&stats);
         } else {
-            printer::print_summary(&stats);
+            visuals::print_summary(&stats);
         }
     }
 
