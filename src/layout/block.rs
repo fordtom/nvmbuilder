@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 /// Mutable state tracked during recursive bytestream building
 struct BuildState {
+    buffer: Vec<u8>,
     offset: usize,
     padding_count: u32,
 }
@@ -49,8 +50,8 @@ impl Block {
         settings: &Settings,
         strict: bool,
     ) -> Result<(Vec<u8>, u32), LayoutError> {
-        let mut buffer = Vec::with_capacity(self.header.length as usize);
         let mut state = BuildState {
+            buffer: Vec::with_capacity(self.header.length as usize),
             offset: 0,
             padding_count: 0,
         };
@@ -60,24 +61,23 @@ impl Block {
             strict,
         };
 
-        Self::build_bytestream_inner(&self.data, data_sheet, &mut buffer, &mut state, &config)?;
+        Self::build_bytestream_inner(&self.data, data_sheet, &mut state, &config)?;
 
         if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
             // Padding out to the 4 byte boundary for appended/prepended CRC32
             while !state.offset.is_multiple_of(4) {
-                buffer.push(config.padding);
+                state.buffer.push(config.padding);
                 state.offset += 1;
                 state.padding_count += 1;
             }
         }
 
-        Ok((buffer, state.padding_count))
+        Ok((state.buffer, state.padding_count))
     }
 
     fn build_bytestream_inner(
         table: &Entry,
         data_sheet: &DataSheet,
-        buffer: &mut Vec<u8>,
         state: &mut BuildState,
         config: &BuildConfig,
     ) -> Result<(), LayoutError> {
@@ -85,23 +85,23 @@ impl Block {
             Entry::Leaf(leaf) => {
                 let alignment = leaf.get_alignment();
                 while !state.offset.is_multiple_of(alignment) {
-                    buffer.push(config.padding);
+                    state.buffer.push(config.padding);
                     state.offset += 1;
                     state.padding_count += 1;
                 }
 
                 let bytes = leaf.emit_bytes(data_sheet, config)?;
                 state.offset += bytes.len();
-                buffer.extend(bytes);
+                state.buffer.extend(bytes);
             }
             Entry::Branch(branch) => {
                 for (field_name, v) in branch.iter() {
-                    Self::build_bytestream_inner(v, data_sheet, buffer, state, config).map_err(
-                        |e| LayoutError::InField {
+                    Self::build_bytestream_inner(v, data_sheet, state, config).map_err(|e| {
+                        LayoutError::InField {
                             field: field_name.clone(),
                             source: Box::new(e),
-                        },
-                    )?;
+                        }
+                    })?;
                 }
             }
         }

@@ -1,6 +1,5 @@
 use super::block::BuildConfig;
 use super::errors::LayoutError;
-use super::settings::Endianness;
 use super::value::ValueSource;
 use crate::variant::DataSheet;
 use serde::Deserialize;
@@ -71,43 +70,24 @@ impl LeafEntry {
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match self.size {
-            None => self.emit_bytes_single(data_sheet, config.endianness, config.strict),
-            Some(SizeSource::OneD(size)) => {
-                let bytes = self.emit_bytes_1d(
-                    data_sheet,
-                    config.endianness,
-                    size,
-                    &config.padding,
-                    config.strict,
-                )?;
-                Ok(bytes)
-            }
-            Some(SizeSource::TwoD(size)) => {
-                let bytes = self.emit_bytes_2d(
-                    data_sheet,
-                    config.endianness,
-                    size,
-                    &config.padding,
-                    config.strict,
-                )?;
-                Ok(bytes)
-            }
+            None => self.emit_bytes_single(data_sheet, config),
+            Some(SizeSource::OneD(size)) => self.emit_bytes_1d(data_sheet, size, config),
+            Some(SizeSource::TwoD(size)) => self.emit_bytes_2d(data_sheet, size, config),
         }
     }
 
     fn emit_bytes_single(
         &self,
         data_sheet: &DataSheet,
-        endianness: &Endianness,
-        strict: bool,
+        config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
                 let value = data_sheet.retrieve_single_value(name)?;
-                value.to_bytes(self.scalar_type, endianness, strict)
+                value.to_bytes(self.scalar_type, config.endianness, config.strict)
             }
             EntrySource::Value(ValueSource::Single(v)) => {
-                v.to_bytes(self.scalar_type, endianness, strict)
+                v.to_bytes(self.scalar_type, config.endianness, config.strict)
             }
             EntrySource::Value(_) => Err(LayoutError::DataValueExportFailed(
                 "Single value expected for scalar type.".to_string(),
@@ -118,10 +98,8 @@ impl LeafEntry {
     fn emit_bytes_1d(
         &self,
         data_sheet: &DataSheet,
-        endianness: &Endianness,
         size: usize,
-        padding: &u8,
-        strict: bool,
+        config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
 
@@ -137,13 +115,17 @@ impl LeafEntry {
                 }
                 ValueSource::Array(v) => {
                     for v in v {
-                        out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
+                        out.extend(v.to_bytes(
+                            self.scalar_type,
+                            config.endianness,
+                            config.strict,
+                        )?);
                     }
                 }
             },
             EntrySource::Value(ValueSource::Array(v)) => {
                 for v in v {
-                    out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
+                    out.extend(v.to_bytes(self.scalar_type, config.endianness, config.strict)?);
                 }
             }
             EntrySource::Value(ValueSource::Single(v)) => {
@@ -162,7 +144,7 @@ impl LeafEntry {
             ));
         }
         while out.len() < (size * self.scalar_type.size_bytes()) {
-            out.push(*padding);
+            out.push(config.padding);
         }
         Ok(out)
     }
@@ -170,10 +152,8 @@ impl LeafEntry {
     fn emit_bytes_2d(
         &self,
         data_sheet: &DataSheet,
-        endianness: &Endianness,
         size: [usize; 2],
-        padding: &u8,
-        strict: bool,
+        config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
@@ -199,12 +179,16 @@ impl LeafEntry {
                 let mut out = Vec::with_capacity(total_bytes);
                 for row in data {
                     for v in row {
-                        out.extend(v.to_bytes(self.scalar_type, endianness, strict)?);
+                        out.extend(v.to_bytes(
+                            self.scalar_type,
+                            config.endianness,
+                            config.strict,
+                        )?);
                     }
                 }
 
                 while out.len() < total_bytes {
-                    out.push(*padding);
+                    out.push(config.padding);
                 }
 
                 Ok(out)
