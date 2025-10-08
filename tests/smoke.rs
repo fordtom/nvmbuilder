@@ -15,8 +15,6 @@ fn smoke_build_examples_all_formats_and_options() {
     let blocks = ["block", "block2", "block3"];
 
     for layout_path in layouts {
-        common::init_crc_from_layout(layout_path);
-
         let Some(ds) = common::find_working_datasheet() else {
             continue;
         };

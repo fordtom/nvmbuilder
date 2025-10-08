@@ -97,7 +97,7 @@ pub fn bytestream_to_datarange(
     }
 
     // Compute CRC based on selected area
-    let crc_val = checksum::calculate_crc(&bytestream);
+    let crc_val = checksum::calculate_crc(&bytestream, &settings.crc);
 
     let mut crc_bytes: [u8; 4] = match settings.endianness {
         Endianness::Big => crc_val.to_be_bytes(),
@@ -222,7 +222,6 @@ mod tests {
     #[test]
     fn pad_to_end_false_resizes_to_crc_end_only() {
         let settings = sample_settings();
-        checksum::init_crc_algorithm(&settings.crc);
         let header = sample_header(16);
 
         let bytestream = vec![1u8, 2, 3, 4];
@@ -237,7 +236,7 @@ mod tests {
         // And the emitted hex should contain the CRC bytes (endianness applied)
         let crc_location = super::validate_crc_location(4usize, &header).expect("crc loc");
         assert_eq!(crc_location as usize, 4, "crc should follow payload end");
-        let crc_val = checksum::calculate_crc(&bytestream[..crc_location as usize]);
+        let crc_val = checksum::calculate_crc(&bytestream[..crc_location as usize], &settings.crc);
         let crc_bytes = match settings.endianness {
             Endianness::Big => crc_val.to_be_bytes(),
             Endianness::Little => crc_val.to_le_bytes(),
@@ -255,7 +254,6 @@ mod tests {
     #[test]
     fn pad_to_end_true_resizes_to_full_block() {
         let settings = sample_settings();
-        checksum::init_crc_algorithm(&settings.crc);
         let header = sample_header(32);
 
         let bytestream = vec![1u8, 2, 3, 4];

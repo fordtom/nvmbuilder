@@ -11,7 +11,6 @@ fn test_block_stat_collection() {
     common::ensure_out_dir();
 
     let layout_path = "examples/block.toml";
-    common::init_crc_from_layout(layout_path);
 
     let Some(ds) = common::find_working_datasheet() else {
         return;
@@ -41,7 +40,6 @@ fn test_build_stats_aggregation() {
     common::ensure_out_dir();
 
     let layout_path = "examples/block.toml";
-    common::init_crc_from_layout(layout_path);
 
     let Some(ds) = common::find_working_datasheet() else {
         return;
@@ -120,7 +118,6 @@ fn test_combined_mode_stats() {
     common::ensure_out_dir();
 
     let layout_path = "examples/block.toml";
-    common::init_crc_from_layout(layout_path);
 
     let Some(ds) = common::find_working_datasheet() else {
         return;

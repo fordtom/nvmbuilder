@@ -85,10 +85,6 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
     };
     let ds = nvmbuilder::variant::DataSheet::new(&var_args).expect("datasheet loads");
 
-    // Initialize CRC (based on respective settings)
-    common::init_crc_from_layout(&be_path);
-    common::init_crc_from_layout(&le_path);
-
     // Case 1: Big endian, swap, pad to end, CRC at explicit address, HEX with width 64
     let args_be_hex = nvmbuilder::args::Args {
         layout: nvmbuilder::layout::args::LayoutArgs {
