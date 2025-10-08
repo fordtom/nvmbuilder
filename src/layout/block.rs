@@ -35,9 +35,10 @@ impl Block {
         data_sheet: &DataSheet,
         settings: &Settings,
         strict: bool,
-    ) -> Result<Vec<u8>, NvmError> {
+    ) -> Result<(Vec<u8>, u32), NvmError> {
         let mut buffer = Vec::with_capacity(self.header.length as usize);
         let mut offset = 0;
+        let mut padding_count = 0;
 
         Self::build_bytestream_inner(
             &self.data,
@@ -47,6 +48,7 @@ impl Block {
             &settings.endianness,
             &self.header.padding,
             strict,
+            &mut padding_count,
         )?;
 
         if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
@@ -54,10 +56,11 @@ impl Block {
             while offset % 4 != 0 {
                 buffer.push(self.header.padding);
                 offset += 1;
+                padding_count += 1;
             }
         }
 
-        Ok(buffer)
+        Ok((buffer, padding_count))
     }
 
     fn build_bytestream_inner(
@@ -68,6 +71,7 @@ impl Block {
         endianness: &Endianness,
         padding: &u8,
         strict: bool,
+        padding_count: &mut u32,
     ) -> Result<(), NvmError> {
         match table {
             Entry::Leaf(leaf) => {
@@ -75,6 +79,7 @@ impl Block {
                 while *offset % alignment != 0 {
                     buffer.push(*padding);
                     *offset += 1;
+                    *padding_count += 1;
                 }
 
                 let bytes = leaf.emit_bytes(data_sheet, endianness, padding, strict)?;
@@ -84,7 +89,7 @@ impl Block {
             Entry::Branch(branch) => {
                 for (_, v) in branch.iter() {
                     Self::build_bytestream_inner(
-                        v, data_sheet, buffer, offset, endianness, padding, strict,
+                        v, data_sheet, buffer, offset, endianness, padding, strict, padding_count,
                     )?;
                 }
             }

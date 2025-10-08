@@ -47,7 +47,7 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildSta
             .get(&input.name)
             .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
 
-        let bytestream =
+        let (bytestream, padding_bytes) =
             block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
         let dr = output::bytestream_to_datarange(
@@ -56,6 +56,7 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildSta
             &layout.settings,
             layout.settings.byte_swap,
             layout.settings.pad_to_end,
+            padding_bytes,
         )?;
 
         let crc_value = match layout.settings.endianness {

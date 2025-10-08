@@ -48,7 +48,7 @@ ok.int_exact_to_f32   = { value = 16777216, type = "f32" }
     };
     let ds = nvmbuilder::variant::DataSheet::new(&var_args).expect("datasheet loads");
 
-    let bytes = block
+    let (bytes, _padding) = block
         .build_bytestream(&ds, &cfg.settings, true)
         .expect("strict conversions should succeed");
     assert!(!bytes.is_empty());

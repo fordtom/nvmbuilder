@@ -19,7 +19,7 @@ pub fn build_block_single(
         .get(&input.name)
         .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
 
-    let bytestream = block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
+    let (bytestream, padding_bytes) = block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
     let data_range = crate::output::bytestream_to_datarange(
         bytestream,
@@ -27,6 +27,7 @@ pub fn build_block_single(
         &layout.settings,
         layout.settings.byte_swap,
         layout.settings.pad_to_end,
+        padding_bytes,
     )?;
 
     let hex_string = crate::output::emit_hex(
