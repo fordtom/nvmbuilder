@@ -78,7 +78,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
 
     // Prepare a datasheet (may be no-op for these, but keep realistic flow)
     let var_args = nvmbuilder::variant::args::VariantArgs {
-        xlsx: "examples/data.xlsx".to_string(),
+        xlsx: Some("examples/data.xlsx".to_string()),
         variant: None,
         debug: false,
         main_sheet: "Main".to_string(),
@@ -115,7 +115,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             name: "block".to_string(),
             file: be_path.clone(),
         },
-        &ds,
+        ds.as_ref(),
         &args_be_hex,
     )
     .expect("be-hex");
@@ -147,7 +147,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             name: "block".to_string(),
             file: be_path.clone(),
         },
-        &ds,
+        ds.as_ref(),
         &args_be_mot,
     )
     .expect("be-mot");
@@ -179,7 +179,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             name: "block".to_string(),
             file: le_path.clone(),
         },
-        &ds,
+        ds.as_ref(),
         &args_le_hex,
     )
     .expect("le-hex");
@@ -211,7 +211,7 @@ arr2.i16 = { value = [10, -20, 30, -40], type = "i16", size = 4 }
             name: "block".to_string(),
             file: le_path.clone(),
         },
-        &ds,
+        ds.as_ref(),
         &args_le_mot,
     )
     .expect("le-mot");

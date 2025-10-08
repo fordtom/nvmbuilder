@@ -13,6 +13,13 @@ fn main() -> Result<(), NvmError> {
 
     let data_sheet = DataSheet::new(&args.variant)?;
 
+    // Warn if variant or debug flags are used without an Excel file
+    if data_sheet.is_none() && (args.variant.variant.is_some() || args.variant.debug) {
+        eprintln!(
+            "Warning: --variant or --debug flag specified without an Excel file (-x). These flags will be ignored."
+        );
+    }
+
     // Check if blocks are provided
     let first_block = args
         .layout
@@ -32,8 +39,8 @@ fn main() -> Result<(), NvmError> {
     })?;
 
     let stats = match args.output.combined {
-        true => commands::build_single_file(&args, &data_sheet)?,
-        false => commands::build_separate_blocks(&args, &data_sheet)?,
+        true => commands::build_single_file(&args, data_sheet.as_ref())?,
+        false => commands::build_separate_blocks(&args, data_sheet.as_ref())?,
     };
 
     if !args.output.quiet {
