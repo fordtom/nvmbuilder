@@ -3,6 +3,7 @@ use crate::commands::stats::BlockStat;
 use crate::error::NvmError;
 use crate::layout;
 use crate::layout::args::BlockNames;
+use crate::layout::errors::LayoutError;
 use crate::layout::settings::Endianness;
 use crate::variant::DataSheet;
 use crate::writer::write_output;
@@ -17,7 +18,7 @@ pub fn build_block_single(
     let block = layout
         .blocks
         .get(&input.name)
-        .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
+        .ok_or(LayoutError::BlockNotFound(input.name.clone()))?;
 
     let (bytestream, padding_bytes) =
         block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;

@@ -1,4 +1,4 @@
-use crate::error::NvmError;
+use super::errors::LayoutError;
 use clap::Args;
 
 #[derive(Debug, Clone)]
@@ -7,11 +7,11 @@ pub struct BlockNames {
     pub file: String,
 }
 
-pub fn parse_block_arg(block: &str) -> Result<BlockNames, NvmError> {
+pub fn parse_block_arg(block: &str) -> Result<BlockNames, LayoutError> {
     let parts: Vec<&str> = block.split('@').collect();
 
     if parts.len() != 2 {
-        Err(NvmError::MiscError(format!(
+        Err(LayoutError::InvalidBlockArgument(format!(
             "Failed to unpack block {}",
             block
         )))

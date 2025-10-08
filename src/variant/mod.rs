@@ -5,8 +5,8 @@ mod helpers;
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 
-use crate::error::*;
 use crate::layout::value::{DataValue, ValueSource};
+use errors::VariantError;
 
 pub struct DataSheet {
     names: Vec<String>,
@@ -17,19 +17,19 @@ pub struct DataSheet {
 }
 
 impl DataSheet {
-    pub fn new(args: &args::VariantArgs) -> Result<Self, NvmError> {
+    pub fn new(args: &args::VariantArgs) -> Result<Self, VariantError> {
         let mut workbook: Xlsx<_> = open_workbook(&args.xlsx)
-            .map_err(|_| NvmError::FileError(format!("failed to open file: {}", args.xlsx)))?;
+            .map_err(|_| VariantError::FileError(format!("failed to open file: {}", args.xlsx)))?;
 
         let main_sheet = workbook
             .worksheet_range(&args.main_sheet)
-            .map_err(|_| NvmError::MiscError("Main sheet not found.".to_string()))?;
+            .map_err(|_| VariantError::MiscError("Main sheet not found.".to_string()))?;
 
         let rows: Vec<_> = main_sheet.rows().collect();
         let (headers, data_rows) = match rows.split_first() {
             Some((hdr, tail)) => (hdr, tail.len()),
             None => {
-                return Err(NvmError::RetrievalError(
+                return Err(VariantError::RetrievalError(
                     "invalid main sheet format.".to_string(),
                 ));
             }
@@ -38,12 +38,12 @@ impl DataSheet {
         let name_index = headers
             .iter()
             .position(|cell| Self::cell_eq_ascii(cell, "Name"))
-            .ok_or(NvmError::ColumnNotFound("Name".to_string()))?;
+            .ok_or(VariantError::ColumnNotFound("Name".to_string()))?;
 
         let default_index = headers
             .iter()
             .position(|cell| Self::cell_eq_ascii(cell, "Default"))
-            .ok_or(NvmError::ColumnNotFound("Default".to_string()))?;
+            .ok_or(VariantError::ColumnNotFound("Default".to_string()))?;
 
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
         names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
@@ -57,7 +57,7 @@ impl DataSheet {
             let debug_index = headers
                 .iter()
                 .position(|cell| Self::cell_eq_ascii(cell, "Debug"))
-                .ok_or(NvmError::ColumnNotFound("Debug".to_string()))?;
+                .ok_or(VariantError::ColumnNotFound("Debug".to_string()))?;
 
             let mut debug_vec: Vec<Data> = Vec::with_capacity(data_rows);
             debug_vec.extend(rows.iter().skip(1).map(|row| row[debug_index].clone()));
@@ -70,7 +70,7 @@ impl DataSheet {
             let variant_index = headers
                 .iter()
                 .position(|cell| cell.to_string() == *name)
-                .ok_or(NvmError::ColumnNotFound(name.to_string()))?;
+                .ok_or(VariantError::ColumnNotFound(name.to_string()))?;
 
             let mut variant_vec: Vec<Data> = Vec::with_capacity(data_rows);
             variant_vec.extend(rows.iter().skip(1).map(|row| row[variant_index].clone()));
@@ -95,19 +95,19 @@ impl DataSheet {
         })
     }
 
-    pub fn retrieve_single_value(&self, name: &str) -> Result<DataValue, NvmError> {
+    pub fn retrieve_single_value(&self, name: &str) -> Result<DataValue, VariantError> {
         match self.retrieve_cell(name)? {
             Data::Int(i) => Ok(DataValue::I64(*i)),
             Data::Float(f) => Ok(DataValue::F64(*f)),
-            _ => Err(NvmError::RetrievalError(
+            _ => Err(VariantError::RetrievalError(
                 "Found non-numeric single value: ".to_string() + name,
             )),
         }
     }
 
-    pub fn retrieve_1d_array_or_string(&self, name: &str) -> Result<ValueSource, NvmError> {
+    pub fn retrieve_1d_array_or_string(&self, name: &str) -> Result<ValueSource, VariantError> {
         let Data::String(cell_string) = self.retrieve_cell(name)? else {
-            return Err(NvmError::RetrievalError(
+            return Err(VariantError::RetrievalError(
                 "Expected string value for 1D array or string: ".to_string() + name,
             ));
         };
@@ -124,7 +124,7 @@ impl DataSheet {
                             Data::Float(f) => DataValue::F64(*f),
                             Data::String(s) => DataValue::Str(s.to_owned()),
                             _ => {
-                                return Err(NvmError::RetrievalError(
+                                return Err(VariantError::RetrievalError(
                                     "Unsupported data type in 1D array: ".to_string() + name,
                                 ));
                             }
@@ -141,22 +141,22 @@ impl DataSheet {
         Ok(ValueSource::Single(DataValue::Str(cell_string.to_owned())))
     }
 
-    pub fn retrieve_2d_array(&self, name: &str) -> Result<Vec<Vec<DataValue>>, NvmError> {
+    pub fn retrieve_2d_array(&self, name: &str) -> Result<Vec<Vec<DataValue>>, VariantError> {
         let Data::String(cell_string) = self.retrieve_cell(name)? else {
-            return Err(NvmError::RetrievalError(
+            return Err(VariantError::RetrievalError(
                 "Expected string value for 2D array: ".to_string() + name,
             ));
         };
 
         let sheet = self.sheets.get(cell_string).ok_or_else(|| {
-            NvmError::RetrievalError("Sheet not found: ".to_string() + cell_string)
+            VariantError::RetrievalError("Sheet not found: ".to_string() + cell_string)
         })?;
 
-        let convert = |cell: &Data| -> Result<DataValue, NvmError> {
+        let convert = |cell: &Data| -> Result<DataValue, VariantError> {
             match cell {
                 Data::Int(i) => Ok(DataValue::I64(*i)),
                 Data::Float(f) => Ok(DataValue::F64(*f)),
-                _ => Err(NvmError::RetrievalError(
+                _ => Err(VariantError::RetrievalError(
                     "Unsupported data type in 2D array: ".to_string() + name,
                 )),
             }
@@ -164,11 +164,11 @@ impl DataSheet {
 
         let mut rows = sheet.rows();
         let hdrs = rows.next().ok_or_else(|| {
-            NvmError::RetrievalError("No headers found in 2D array: ".to_string() + name)
+            VariantError::RetrievalError("No headers found in 2D array: ".to_string() + name)
         })?;
         let width = hdrs.iter().take_while(|c| !Self::cell_is_empty(c)).count();
         if width == 0 {
-            return Err(NvmError::RetrievalError(
+            return Err(VariantError::RetrievalError(
                 "Detected zero width 2D array: ".to_string() + name,
             ));
         }
@@ -196,14 +196,14 @@ impl DataSheet {
         Ok(out)
     }
 
-    fn retrieve_cell(&self, name: &str) -> Result<&Data, NvmError> {
-        let index = self
-            .names
-            .iter()
-            .position(|n| n == name)
-            .ok_or(NvmError::RetrievalError(
-                "index not found for ".to_string() + name,
-            ))?;
+    fn retrieve_cell(&self, name: &str) -> Result<&Data, VariantError> {
+        let index =
+            self.names
+                .iter()
+                .position(|n| n == name)
+                .ok_or(VariantError::RetrievalError(
+                    "index not found for ".to_string() + name,
+                ))?;
 
         if let Some(v) = [
             self.debug_values.as_ref().and_then(|v| v.get(index)),
@@ -217,7 +217,7 @@ impl DataSheet {
             return Ok(v);
         }
 
-        Err(NvmError::RetrievalError(
+        Err(VariantError::RetrievalError(
             "data not found for ".to_string() + name,
         ))
     }

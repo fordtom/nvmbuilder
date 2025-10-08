@@ -7,13 +7,13 @@ pub mod header;
 pub mod settings;
 pub mod value;
 
-use crate::error::*;
 use block::Config;
+use errors::LayoutError;
 use std::path::Path;
 
-pub fn load_layout(filename: &str) -> Result<Config, NvmError> {
+pub fn load_layout(filename: &str) -> Result<Config, LayoutError> {
     let text = std::fs::read_to_string(filename)
-        .map_err(|_| NvmError::FileError(format!("failed to open file: {}", filename)))?;
+        .map_err(|_| LayoutError::FileError(format!("failed to open file: {}", filename)))?;
 
     let ext = Path::new(filename)
         .extension()
@@ -23,15 +23,19 @@ pub fn load_layout(filename: &str) -> Result<Config, NvmError> {
 
     let cfg: Config = match ext.as_str() {
         "toml" => toml::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+            LayoutError::FileError(format!("failed to parse file {}: {}", filename, e))
         })?,
         "yaml" | "yml" => serde_yaml::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+            LayoutError::FileError(format!("failed to parse file {}: {}", filename, e))
         })?,
         "json" => serde_json::from_str(&text).map_err(|e| {
-            NvmError::FileError(format!("failed to parse file {}: {}", filename, e))
+            LayoutError::FileError(format!("failed to parse file {}: {}", filename, e))
         })?,
-        _ => return Err(NvmError::FileError("Unsupported file format".to_string())),
+        _ => {
+            return Err(LayoutError::FileError(
+                "Unsupported file format".to_string(),
+            ));
+        }
     };
 
     Ok(cfg)

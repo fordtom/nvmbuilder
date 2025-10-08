@@ -1,6 +1,6 @@
+use super::errors::LayoutError;
 use super::settings::Endianness;
 use super::value::ValueSource;
-use crate::error::*;
 use crate::variant::DataSheet;
 use serde::Deserialize;
 
@@ -70,7 +70,7 @@ impl LeafEntry {
         endianness: &Endianness,
         padding: &u8,
         strict: bool,
-    ) -> Result<Vec<u8>, NvmError> {
+    ) -> Result<Vec<u8>, LayoutError> {
         match self.size {
             None => self.emit_bytes_single(data_sheet, endianness, strict),
             Some(SizeSource::OneD(size)) => {
@@ -89,7 +89,7 @@ impl LeafEntry {
         data_sheet: &DataSheet,
         endianness: &Endianness,
         strict: bool,
-    ) -> Result<Vec<u8>, NvmError> {
+    ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
                 let value = data_sheet.retrieve_single_value(name)?;
@@ -98,7 +98,7 @@ impl LeafEntry {
             EntrySource::Value(ValueSource::Single(v)) => {
                 v.to_bytes(self.scalar_type, endianness, strict)
             }
-            EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
+            EntrySource::Value(_) => Err(LayoutError::DataValueExportFailed(
                 "Single value expected for scalar type.".to_string(),
             )),
         }
@@ -111,14 +111,14 @@ impl LeafEntry {
         size: usize,
         padding: &u8,
         strict: bool,
-    ) -> Result<Vec<u8>, NvmError> {
+    ) -> Result<Vec<u8>, LayoutError> {
         let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
 
         match &self.source {
             EntrySource::Name(name) => match data_sheet.retrieve_1d_array_or_string(name)? {
                 ValueSource::Single(v) => {
                     if !matches!(self.scalar_type, ScalarType::U8) {
-                        return Err(NvmError::DataValueExportFailed(
+                        return Err(LayoutError::DataValueExportFailed(
                             "Strings should have type u8.".to_string(),
                         ));
                     }
@@ -137,7 +137,7 @@ impl LeafEntry {
             }
             EntrySource::Value(ValueSource::Single(v)) => {
                 if !matches!(self.scalar_type, ScalarType::U8) {
-                    return Err(NvmError::DataValueExportFailed(
+                    return Err(LayoutError::DataValueExportFailed(
                         "Strings should have type u8.".to_string(),
                     ));
                 }
@@ -146,7 +146,7 @@ impl LeafEntry {
         }
 
         if out.len() > (size * self.scalar_type.size_bytes()) {
-            return Err(NvmError::DataValueExportFailed(
+            return Err(LayoutError::DataValueExportFailed(
                 "Array/string is larger than defined size.".to_string(),
             ));
         }
@@ -163,7 +163,7 @@ impl LeafEntry {
         size: [usize; 2],
         padding: &u8,
         strict: bool,
-    ) -> Result<Vec<u8>, NvmError> {
+    ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
                 let data = data_sheet.retrieve_2d_array(name)?;
@@ -174,13 +174,13 @@ impl LeafEntry {
                 let total_bytes = rows * cols * self.scalar_type.size_bytes();
 
                 if data.iter().any(|row| row.len() != cols) {
-                    return Err(NvmError::DataValueExportFailed(
+                    return Err(LayoutError::DataValueExportFailed(
                         "2D array column count mismatch.".to_string(),
                     ));
                 }
 
                 if data.len() > rows {
-                    return Err(NvmError::DataValueExportFailed(
+                    return Err(LayoutError::DataValueExportFailed(
                         "2D array row count greater than defined size.".to_string(),
                     ));
                 }
@@ -198,7 +198,7 @@ impl LeafEntry {
 
                 Ok(out)
             }
-            EntrySource::Value(_) => Err(NvmError::DataValueExportFailed(
+            EntrySource::Value(_) => Err(LayoutError::DataValueExportFailed(
                 "2D arrays within the layout file are not supported.".to_string(),
             )),
         }

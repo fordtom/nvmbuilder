@@ -1,7 +1,7 @@
 use super::conversions::convert_value_to_bytes;
 use super::entry::ScalarType;
+use super::errors::LayoutError;
 use super::settings::Endianness;
-use crate::error::*;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -26,14 +26,14 @@ impl DataValue {
         scalar_type: ScalarType,
         endianness: &Endianness,
         strict: bool,
-    ) -> Result<Vec<u8>, NvmError> {
+    ) -> Result<Vec<u8>, LayoutError> {
         convert_value_to_bytes(self, scalar_type, endianness, strict)
     }
 
-    pub fn string_to_bytes(&self) -> Result<Vec<u8>, NvmError> {
+    pub fn string_to_bytes(&self) -> Result<Vec<u8>, LayoutError> {
         match self {
             DataValue::Str(val) => Ok(val.as_bytes().to_vec()),
-            _ => Err(NvmError::DataValueExportFailed(
+            _ => Err(LayoutError::DataValueExportFailed(
                 "String expected for string type.".to_string(),
             )),
         }

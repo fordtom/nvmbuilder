@@ -4,7 +4,9 @@ pub mod stats;
 use crate::args::Args;
 use crate::error::NvmError;
 use crate::layout;
+use crate::layout::errors::LayoutError;
 use crate::output;
+use crate::output::errors::OutputError;
 use crate::variant::DataSheet;
 use crate::writer::write_output;
 use rayon::prelude::*;
@@ -45,7 +47,7 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildSta
         let block = layout
             .blocks
             .get(&input.name)
-            .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
+            .ok_or(LayoutError::BlockNotFound(input.name.clone()))?;
 
         let (bytestream, padding_bytes) =
             block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
@@ -112,7 +114,7 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildSta
                     overlap_end - 1,
                     overlap_size
                 );
-                return Err(NvmError::BlockOverlapError(msg));
+                return Err(OutputError::BlockOverlapError(msg).into());
             }
         }
     }
