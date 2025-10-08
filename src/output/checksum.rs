@@ -26,7 +26,7 @@ pub fn calculate_crc(data: &[u8], crc_settings: &CrcData) -> u32 {
         };
 
         // Perform 8 rounds of bitwise CRC calculation
-        let mut step = idx;
+        let mut step = if crc_settings.ref_in { idx } else { idx << 24 };
         if crc_settings.ref_in {
             for _ in 0..8 {
                 step = (step >> 1) ^ ((step & 1) * poly);
@@ -83,5 +83,25 @@ mod tests {
         let simple_data = vec![0x01, 0x02, 0x03, 0x04];
         let simple_result = calculate_crc(&simple_data, &crc_settings);
         assert_eq!(simple_result, 0xB63CFBCD, "CRC32 for [1,2,3,4] failed");
+    }
+
+    #[test]
+    fn test_crc32_mpeg2_non_reflected_vector() {
+        let crc_settings = CrcData {
+            polynomial: 0x04C11DB7,
+            start: 0xFFFF_FFFF,
+            xor_out: 0x0000_0000,
+            ref_in: false,
+            ref_out: false,
+            area: CrcArea::Data,
+        };
+
+        // CRC-32/MPEG-2 parameters (non-reflected) over "123456789" should produce 0x0376E6E7
+        let test_str = b"123456789";
+        let result = calculate_crc(test_str, &crc_settings);
+        assert_eq!(
+            result, 0x0376E6E7,
+            "CRC32/MPEG-2 test vector failed (expected 0x0376E6E7 for \"123456789\")"
+        );
     }
 }
