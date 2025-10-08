@@ -14,4 +14,12 @@ pub enum NvmError {
 
     #[error(transparent)]
     Output(#[from] OutputError),
+
+    #[error("While building block '{block_name}' from '{layout_file}': {source}")]
+    InBlock {
+        block_name: String,
+        layout_file: String,
+        #[source]
+        source: Box<NvmError>,
+    },
 }

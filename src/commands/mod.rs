@@ -42,52 +42,63 @@ pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildSta
     let mut stats = BuildStats::new();
 
     for input in &args.layout.blocks {
-        let layout = layout::load_layout(&input.file)?;
+        let result = (|| {
+            let layout = layout::load_layout(&input.file)?;
 
-        let block = layout
-            .blocks
-            .get(&input.name)
-            .ok_or(LayoutError::BlockNotFound(input.name.clone()))?;
+            let block = layout
+                .blocks
+                .get(&input.name)
+                .ok_or(LayoutError::BlockNotFound(input.name.clone()))?;
 
-        let (bytestream, padding_bytes) =
-            block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
+            let (bytestream, padding_bytes) =
+                block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
-        let dr = output::bytestream_to_datarange(
-            bytestream,
-            &block.header,
-            &layout.settings,
-            layout.settings.byte_swap,
-            layout.settings.pad_to_end,
-            padding_bytes,
-        )?;
+            let dr = output::bytestream_to_datarange(
+                bytestream,
+                &block.header,
+                &layout.settings,
+                layout.settings.byte_swap,
+                layout.settings.pad_to_end,
+                padding_bytes,
+            )?;
 
-        let crc_value = match layout.settings.endianness {
-            layout::settings::Endianness::Big => u32::from_be_bytes([
-                dr.crc_bytestream[0],
-                dr.crc_bytestream[1],
-                dr.crc_bytestream[2],
-                dr.crc_bytestream[3],
-            ]),
-            layout::settings::Endianness::Little => u32::from_le_bytes([
-                dr.crc_bytestream[0],
-                dr.crc_bytestream[1],
-                dr.crc_bytestream[2],
-                dr.crc_bytestream[3],
-            ]),
-        };
+            let crc_value = match layout.settings.endianness {
+                layout::settings::Endianness::Big => u32::from_be_bytes([
+                    dr.crc_bytestream[0],
+                    dr.crc_bytestream[1],
+                    dr.crc_bytestream[2],
+                    dr.crc_bytestream[3],
+                ]),
+                layout::settings::Endianness::Little => u32::from_le_bytes([
+                    dr.crc_bytestream[0],
+                    dr.crc_bytestream[1],
+                    dr.crc_bytestream[2],
+                    dr.crc_bytestream[3],
+                ]),
+            };
 
-        stats.add_block(BlockStat {
-            name: input.name.clone(),
-            start_address: dr.start_address,
-            allocated_size: dr.allocated_size,
-            used_size: dr.used_size,
-            crc_value,
-        });
+            let stat = BlockStat {
+                name: input.name.clone(),
+                start_address: dr.start_address,
+                allocated_size: dr.allocated_size,
+                used_size: dr.used_size,
+                crc_value,
+            };
 
+            let start = block.header.start_address + layout.settings.virtual_offset;
+            let end = start + block.header.length;
+
+            Ok((dr, stat, start, end))
+        })()
+        .map_err(|e| NvmError::InBlock {
+            block_name: input.name.clone(),
+            layout_file: input.file.clone(),
+            source: Box::new(e),
+        })?;
+
+        let (dr, stat, start, end) = result;
+        stats.add_block(stat);
         ranges.push(dr);
-
-        let start = block.header.start_address + layout.settings.virtual_offset;
-        let end = start + block.header.length;
         block_ranges.push((input.name.clone(), start, end));
     }
 
