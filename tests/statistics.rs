@@ -27,8 +27,8 @@ fn test_block_stat_collection() {
         file: layout_path.to_string(),
     };
 
-    let block_stat =
-        commands::generate::build_block_single(&input, &ds, &args).expect("build should succeed");
+    let block_stat = commands::generate::build_block_single(&input, Some(&ds), &args)
+        .expect("build should succeed");
 
     assert_eq!(block_stat.name, "block");
     assert!(block_stat.allocated_size > 0);
@@ -67,7 +67,7 @@ fn test_build_stats_aggregation() {
         nvmbuilder::output::args::OutputFormat::Hex,
     );
 
-    let stats = commands::build_single_file(&args, &ds).expect("build should succeed");
+    let stats = commands::build_single_file(&args, Some(&ds)).expect("build should succeed");
 
     assert_eq!(stats.blocks_processed, block_inputs.len());
     assert!(stats.total_allocated > 0);
@@ -145,7 +145,7 @@ fn test_combined_mode_stats() {
         nvmbuilder::output::args::OutputFormat::Hex,
     );
 
-    let stats = commands::build_single_file(&args, &ds).expect("build should succeed");
+    let stats = commands::build_single_file(&args, Some(&ds)).expect("build should succeed");
 
     assert_eq!(stats.blocks_processed, block_inputs.len());
 

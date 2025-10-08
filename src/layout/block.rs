@@ -46,7 +46,7 @@ pub enum Entry {
 impl Block {
     pub fn build_bytestream(
         &self,
-        data_sheet: &DataSheet,
+        data_sheet: Option<&DataSheet>,
         settings: &Settings,
         strict: bool,
     ) -> Result<(Vec<u8>, u32), LayoutError> {
@@ -77,7 +77,7 @@ impl Block {
 
     fn build_bytestream_inner(
         table: &Entry,
-        data_sheet: &DataSheet,
+        data_sheet: Option<&DataSheet>,
         state: &mut BuildState,
         config: &BuildConfig,
     ) -> Result<(), LayoutError> {

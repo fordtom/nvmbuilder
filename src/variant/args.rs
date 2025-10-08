@@ -5,11 +5,11 @@ pub struct VariantArgs {
     #[arg(
         short = 'x',
         long,
-        required = true,
+        required = false,
         value_name = "FILE",
         help = "Path to the Excel variants file"
     )]
-    pub xlsx: String,
+    pub xlsx: Option<String>,
 
     #[arg(
         long,

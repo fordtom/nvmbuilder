@@ -35,7 +35,7 @@ pub fn build_args(layout_path: &str, block_name: &str, format: OutputFormat) -> 
             strict: false,
         },
         variant: variant::args::VariantArgs {
-            xlsx: "examples/data.xlsx".to_string(),
+            xlsx: Some("examples/data.xlsx".to_string()),
             variant: None,
             debug: false,
             main_sheet: "Main".to_string(),
@@ -61,12 +61,12 @@ pub fn find_working_datasheet() -> Option<DataSheet> {
         for var in &variant_candidates {
             let var_opt: Option<String> = var.map(|s| s.to_string());
             let var_args = variant::args::VariantArgs {
-                xlsx: "examples/data.xlsx".to_string(),
+                xlsx: Some("examples/data.xlsx".to_string()),
                 variant: var_opt,
                 debug: dbg,
                 main_sheet: "Main".to_string(),
             };
-            if let Ok(ds) = DataSheet::new(&var_args) {
+            if let Ok(Some(ds)) = DataSheet::new(&var_args) {
                 return Some(ds);
             }
         }
@@ -83,6 +83,20 @@ pub fn assert_out_file_exists(block_name: &str, format: OutputFormat) {
     assert!(Path::new("out").join(expected).exists());
 }
 
+pub fn assert_out_file_exists_custom(
+    block_name: &str,
+    prefix: &str,
+    suffix: &str,
+    format: OutputFormat,
+) {
+    let ext = match format {
+        OutputFormat::Hex => "hex",
+        OutputFormat::Mot => "mot",
+    };
+    let expected = format!("{}_{}_{}.{}", prefix, block_name, suffix, ext);
+    assert!(Path::new("out").join(expected).exists());
+}
+
 pub fn build_args_for_layouts(layouts: Vec<BlockNames>, format: OutputFormat) -> Args {
     Args {
         layout: LayoutArgs {
@@ -90,7 +104,7 @@ pub fn build_args_for_layouts(layouts: Vec<BlockNames>, format: OutputFormat) ->
             strict: false,
         },
         variant: variant::args::VariantArgs {
-            xlsx: "examples/data.xlsx".to_string(),
+            xlsx: Some("examples/data.xlsx".to_string()),
             variant: None,
             debug: false,
             main_sheet: "Main".to_string(),

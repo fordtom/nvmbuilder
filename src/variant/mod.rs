@@ -17,9 +17,13 @@ pub struct DataSheet {
 }
 
 impl DataSheet {
-    pub fn new(args: &args::VariantArgs) -> Result<Self, VariantError> {
-        let mut workbook: Xlsx<_> = open_workbook(&args.xlsx)
-            .map_err(|_| VariantError::FileError(format!("failed to open file: {}", args.xlsx)))?;
+    pub fn new(args: &args::VariantArgs) -> Result<Option<Self>, VariantError> {
+        let Some(xlsx_path) = &args.xlsx else {
+            return Ok(None);
+        };
+
+        let mut workbook: Xlsx<_> = open_workbook(xlsx_path)
+            .map_err(|_| VariantError::FileError(format!("failed to open file: {}", xlsx_path)))?;
 
         let main_sheet = workbook
             .worksheet_range(&args.main_sheet)
@@ -86,13 +90,13 @@ impl DataSheet {
             }
         }
 
-        Ok(Self {
+        Ok(Some(Self {
             names,
             default_values,
             debug_values,
             variant_values,
             sheets,
-        })
+        }))
     }
 
     pub fn retrieve_single_value(&self, name: &str) -> Result<DataValue, VariantError> {

@@ -38,7 +38,8 @@ fn smoke_build_examples_all_formats_and_options() {
                 name: blk.to_string(),
                 file: layout_path.to_string(),
             };
-            commands::generate::build_block_single(&input, &ds, &args_hex).expect("build hex");
+            commands::generate::build_block_single(&input, Some(&ds), &args_hex)
+                .expect("build hex");
             common::assert_out_file_exists(blk, nvmbuilder::output::args::OutputFormat::Hex);
 
             // Mot
@@ -47,7 +48,8 @@ fn smoke_build_examples_all_formats_and_options() {
                 blk,
                 nvmbuilder::output::args::OutputFormat::Mot,
             );
-            commands::generate::build_block_single(&input, &ds, &args_mot).expect("build mot");
+            commands::generate::build_block_single(&input, Some(&ds), &args_mot)
+                .expect("build mot");
             common::assert_out_file_exists(blk, nvmbuilder::output::args::OutputFormat::Mot);
         }
 
@@ -66,7 +68,7 @@ fn smoke_build_examples_all_formats_and_options() {
                 nvmbuilder::output::args::OutputFormat::Hex,
             );
 
-            commands::build_single_file(&args_single, &ds).expect("build combined");
+            commands::build_single_file(&args_single, Some(&ds)).expect("build combined");
             common::assert_out_file_exists("combined", nvmbuilder::output::args::OutputFormat::Hex);
         }
     }

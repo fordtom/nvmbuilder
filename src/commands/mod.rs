@@ -13,7 +13,10 @@ use rayon::prelude::*;
 use stats::{BlockStat, BuildStats};
 use std::time::Instant;
 
-pub fn build_separate_blocks(args: &Args, data_sheet: &DataSheet) -> Result<BuildStats, NvmError> {
+pub fn build_separate_blocks(
+    args: &Args,
+    data_sheet: Option<&DataSheet>,
+) -> Result<BuildStats, NvmError> {
     let start_time = Instant::now();
 
     let block_stats: Result<Vec<BlockStat>, NvmError> = args
@@ -34,7 +37,10 @@ pub fn build_separate_blocks(args: &Args, data_sheet: &DataSheet) -> Result<Buil
     Ok(stats)
 }
 
-pub fn build_single_file(args: &Args, data_sheet: &DataSheet) -> Result<BuildStats, NvmError> {
+pub fn build_single_file(
+    args: &Args,
+    data_sheet: Option<&DataSheet>,
+) -> Result<BuildStats, NvmError> {
     let start_time = Instant::now();
 
     let mut ranges = Vec::new();

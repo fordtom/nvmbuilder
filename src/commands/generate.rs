@@ -10,7 +10,7 @@ use crate::writer::write_output;
 
 pub fn build_block_single(
     input: &BlockNames,
-    data_sheet: &DataSheet,
+    data_sheet: Option<&DataSheet>,
     args: &Args,
 ) -> Result<BlockStat, NvmError> {
     let result = (|| {

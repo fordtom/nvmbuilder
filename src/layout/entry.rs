@@ -66,7 +66,7 @@ impl LeafEntry {
 
     pub fn emit_bytes(
         &self,
-        data_sheet: &DataSheet,
+        data_sheet: Option<&DataSheet>,
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match self.size {
@@ -78,11 +78,17 @@ impl LeafEntry {
 
     fn emit_bytes_single(
         &self,
-        data_sheet: &DataSheet,
+        data_sheet: Option<&DataSheet>,
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
+                let Some(data_sheet) = data_sheet else {
+                    return Err(LayoutError::MissingDataSheet(format!(
+                        "Field '{}' requires a value from the Excel datasheet, but no datasheet was provided. Use -x to specify an Excel file.",
+                        name
+                    )));
+                };
                 let value = data_sheet.retrieve_single_value(name)?;
                 value.to_bytes(self.scalar_type, config.endianness, config.strict)
             }
@@ -97,32 +103,40 @@ impl LeafEntry {
 
     fn emit_bytes_1d(
         &self,
-        data_sheet: &DataSheet,
+        data_sheet: Option<&DataSheet>,
         size: usize,
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
 
         match &self.source {
-            EntrySource::Name(name) => match data_sheet.retrieve_1d_array_or_string(name)? {
-                ValueSource::Single(v) => {
-                    if !matches!(self.scalar_type, ScalarType::U8) {
-                        return Err(LayoutError::DataValueExportFailed(
-                            "Strings should have type u8.".to_string(),
-                        ));
+            EntrySource::Name(name) => {
+                let Some(data_sheet) = data_sheet else {
+                    return Err(LayoutError::MissingDataSheet(format!(
+                        "Field '{}' requires a value from the Excel datasheet, but no datasheet was provided. Use -x to specify an Excel file.",
+                        name
+                    )));
+                };
+                match data_sheet.retrieve_1d_array_or_string(name)? {
+                    ValueSource::Single(v) => {
+                        if !matches!(self.scalar_type, ScalarType::U8) {
+                            return Err(LayoutError::DataValueExportFailed(
+                                "Strings should have type u8.".to_string(),
+                            ));
+                        }
+                        out.extend(v.string_to_bytes()?);
                     }
-                    out.extend(v.string_to_bytes()?);
-                }
-                ValueSource::Array(v) => {
-                    for v in v {
-                        out.extend(v.to_bytes(
-                            self.scalar_type,
-                            config.endianness,
-                            config.strict,
-                        )?);
+                    ValueSource::Array(v) => {
+                        for v in v {
+                            out.extend(v.to_bytes(
+                                self.scalar_type,
+                                config.endianness,
+                                config.strict,
+                            )?);
+                        }
                     }
                 }
-            },
+            }
             EntrySource::Value(ValueSource::Array(v)) => {
                 for v in v {
                     out.extend(v.to_bytes(self.scalar_type, config.endianness, config.strict)?);
@@ -151,12 +165,18 @@ impl LeafEntry {
 
     fn emit_bytes_2d(
         &self,
-        data_sheet: &DataSheet,
+        data_sheet: Option<&DataSheet>,
         size: [usize; 2],
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
+                let Some(data_sheet) = data_sheet else {
+                    return Err(LayoutError::MissingDataSheet(format!(
+                        "Field '{}' requires a value from the Excel datasheet, but no datasheet was provided. Use -x to specify an Excel file.",
+                        name
+                    )));
+                };
                 let data = data_sheet.retrieve_2d_array(name)?;
 
                 let rows = size[0];

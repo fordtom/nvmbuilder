@@ -17,6 +17,9 @@ pub enum LayoutError {
     #[error("No blocks provided.")]
     NoBlocksProvided,
 
+    #[error("Missing datasheet: {0}")]
+    MissingDataSheet(String),
+
     #[error("In field '{field}': {source}")]
     InField {
         field: String,
