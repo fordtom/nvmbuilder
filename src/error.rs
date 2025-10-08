@@ -1,40 +1,25 @@
 use thiserror::Error;
 
+use crate::layout::errors::LayoutError;
+use crate::output::errors::OutputError;
+use crate::variant::errors::VariantError;
+
 #[derive(Debug, Error)]
 pub enum NvmError {
-    #[error("File error: {0}.")]
-    FileError(String),
+    #[error(transparent)]
+    Layout(#[from] LayoutError),
 
-    #[error("Failed to extract {0}.")]
-    FailedToExtract(String),
+    #[error(transparent)]
+    Variant(#[from] VariantError),
 
-    #[error("Block not found: {0}.")]
-    BlockNotFound(String),
+    #[error(transparent)]
+    Output(#[from] OutputError),
 
-    #[error("Recursion failed: {0}.")]
-    RecursionFailed(String),
-
-    #[error("Data value export failed: {0}.")]
-    DataValueExportFailed(String),
-
-    #[error("Bytestream assembly failed: {0}.")]
-    BytestreamAssemblyFailed(String),
-
-    #[error("Excel column not found: {0}.")]
-    ColumnNotFound(String),
-
-    #[error("Excel retrieval error: {0}.")]
-    RetrievalError(String),
-
-    #[error("Array error: {0}.")]
-    ArrayError(String),
-
-    #[error("Misc error: {0}.")]
-    MiscError(String),
-
-    #[error("Hex output error: {0}.")]
-    HexOutputError(String),
-
-    #[error("Block memory overlap detected: {0}")]
-    BlockOverlapError(String),
+    #[error("While building block '{block_name}' from '{layout_file}': {source}")]
+    InBlock {
+        block_name: String,
+        layout_file: String,
+        #[source]
+        source: Box<NvmError>,
+    },
 }

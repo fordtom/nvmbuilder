@@ -1,7 +1,7 @@
 use super::entry::LeafEntry;
+use super::errors::LayoutError;
 use super::header::{CrcLocation, Header};
 use super::settings::{Endianness, Settings};
-use crate::error::*;
 use crate::variant::DataSheet;
 
 use indexmap::IndexMap;
@@ -35,7 +35,7 @@ impl Block {
         data_sheet: &DataSheet,
         settings: &Settings,
         strict: bool,
-    ) -> Result<(Vec<u8>, u32), NvmError> {
+    ) -> Result<(Vec<u8>, u32), LayoutError> {
         let mut buffer = Vec::with_capacity(self.header.length as usize);
         let mut offset = 0;
         let mut padding_count = 0;
@@ -72,7 +72,7 @@ impl Block {
         padding: &u8,
         strict: bool,
         padding_count: &mut u32,
-    ) -> Result<(), NvmError> {
+    ) -> Result<(), LayoutError> {
         match table {
             Entry::Leaf(leaf) => {
                 let alignment = leaf.get_alignment();
@@ -87,10 +87,21 @@ impl Block {
                 buffer.extend(bytes);
             }
             Entry::Branch(branch) => {
-                for (_, v) in branch.iter() {
+                for (field_name, v) in branch.iter() {
                     Self::build_bytestream_inner(
-                        v, data_sheet, buffer, offset, endianness, padding, strict, padding_count,
-                    )?;
+                        v,
+                        data_sheet,
+                        buffer,
+                        offset,
+                        endianness,
+                        padding,
+                        strict,
+                        padding_count,
+                    )
+                    .map_err(|e| LayoutError::InField {
+                        field: field_name.clone(),
+                        source: Box::new(e),
+                    })?;
                 }
             }
         }

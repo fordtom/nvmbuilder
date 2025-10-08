@@ -1,10 +1,11 @@
 pub mod args;
 pub mod checksum;
+pub mod errors;
 
-use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
 use crate::layout::settings::{CrcArea, Endianness, Settings};
 use crate::output::args::OutputFormat;
+use errors::OutputError;
 
 use bin_file::{BinFile, IHexFormat};
 
@@ -24,15 +25,15 @@ fn byte_swap_inplace(bytes: &mut [u8]) {
     }
 }
 
-fn validate_crc_location(length: usize, header: &Header) -> Result<u32, NvmError> {
+fn validate_crc_location(length: usize, header: &Header) -> Result<u32, OutputError> {
     let crc_offset = match &header.crc_location {
         CrcLocation::Address(address) => {
             let crc_offset = address.checked_sub(header.start_address).ok_or_else(|| {
-                NvmError::HexOutputError("CRC address before block start.".to_string())
+                OutputError::HexOutputError("CRC address before block start.".to_string())
             })?;
 
             if crc_offset < length as u32 {
-                return Err(NvmError::HexOutputError(
+                return Err(OutputError::HexOutputError(
                     "CRC overlaps with payload.".to_string(),
                 ));
             }
@@ -42,7 +43,7 @@ fn validate_crc_location(length: usize, header: &Header) -> Result<u32, NvmError
         CrcLocation::Keyword(option) => match option.as_str() {
             "end" => (length as u32 + 3) & !3,
             _ => {
-                return Err(NvmError::HexOutputError(format!(
+                return Err(OutputError::HexOutputError(format!(
                     "Invalid CRC location: {}",
                     option
                 )));
@@ -51,7 +52,7 @@ fn validate_crc_location(length: usize, header: &Header) -> Result<u32, NvmError
     };
 
     if header.length < crc_offset + 4 {
-        return Err(NvmError::HexOutputError(
+        return Err(OutputError::HexOutputError(
             "CRC location would overrun block.".to_string(),
         ));
     }
@@ -66,9 +67,9 @@ pub fn bytestream_to_datarange(
     byte_swap: bool,
     pad_to_end: bool,
     padding_bytes: u32,
-) -> Result<DataRange, NvmError> {
+) -> Result<DataRange, OutputError> {
     if bytestream.len() > header.length as usize {
-        return Err(NvmError::HexOutputError(
+        return Err(OutputError::HexOutputError(
             "Bytestream length exceeds block length.".to_string(),
         ));
     }
@@ -125,7 +126,7 @@ pub fn emit_hex(
     ranges: &[DataRange],
     record_width: usize,
     format: OutputFormat,
-) -> Result<String, NvmError> {
+) -> Result<String, OutputError> {
     // Use bin_file to format output.
     let mut bf = BinFile::new();
     let mut max_end: usize = 0;
@@ -136,13 +137,13 @@ pub fn emit_hex(
             Some(range.start_address as usize),
             false,
         )
-        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+        .map_err(|e| OutputError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
         bf.add_bytes(
             range.crc_bytestream.as_slice(),
             Some(range.crc_address as usize),
             true,
         )
-        .map_err(|e| NvmError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
+        .map_err(|e| OutputError::HexOutputError(format!("Failed to add bytes: {}", e)))?;
 
         let end = (range.start_address as usize).saturating_add(range.bytestream.len());
         if end > max_end {
@@ -162,7 +163,7 @@ pub fn emit_hex(
                 IHexFormat::IHex32
             };
             let lines = bf.to_ihex(Some(record_width), ihex_format).map_err(|e| {
-                NvmError::HexOutputError(format!("Failed to generate Intel HEX: {}", e))
+                OutputError::HexOutputError(format!("Failed to generate Intel HEX: {}", e))
             })?;
             Ok(lines.join("\n"))
         }
@@ -176,7 +177,7 @@ pub fn emit_hex(
                 SRecordAddressLength::Length32
             };
             let lines = bf.to_srec(Some(record_width), addr_len).map_err(|e| {
-                NvmError::HexOutputError(format!("Failed to generate S-Record: {}", e))
+                OutputError::HexOutputError(format!("Failed to generate S-Record: {}", e))
             })?;
             Ok(lines.join("\n"))
         }

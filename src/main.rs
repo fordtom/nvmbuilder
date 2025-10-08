@@ -18,8 +18,12 @@ fn main() -> Result<(), NvmError> {
     let first_layout = layout::load_layout(&first_block.file)?;
     output::checksum::init_crc_algorithm(&first_layout.settings.crc);
 
-    std::fs::create_dir_all(&args.output.out)
-        .map_err(|e| NvmError::FileError(format!("failed to create output directory: {}", e)))?;
+    std::fs::create_dir_all(&args.output.out).map_err(|e| {
+        NvmError::Output(nvmbuilder::output::errors::OutputError::FileError(format!(
+            "failed to create output directory: {}",
+            e
+        )))
+    })?;
 
     let stats = match args.output.combined {
         true => commands::build_single_file(&args, &data_sheet)?,
