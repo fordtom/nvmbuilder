@@ -7,6 +7,19 @@ use crate::variant::DataSheet;
 use indexmap::IndexMap;
 use serde::Deserialize;
 
+/// Mutable state tracked during recursive bytestream building
+struct BuildState {
+    offset: usize,
+    padding_count: u32,
+}
+
+/// Immutable configuration for bytestream building
+pub struct BuildConfig<'a> {
+    pub endianness: &'a Endianness,
+    pub padding: u8,
+    pub strict: bool,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub settings: Settings,
@@ -37,71 +50,58 @@ impl Block {
         strict: bool,
     ) -> Result<(Vec<u8>, u32), LayoutError> {
         let mut buffer = Vec::with_capacity(self.header.length as usize);
-        let mut offset = 0;
-        let mut padding_count = 0;
-
-        Self::build_bytestream_inner(
-            &self.data,
-            data_sheet,
-            &mut buffer,
-            &mut offset,
-            &settings.endianness,
-            &self.header.padding,
+        let mut state = BuildState {
+            offset: 0,
+            padding_count: 0,
+        };
+        let config = BuildConfig {
+            endianness: &settings.endianness,
+            padding: self.header.padding,
             strict,
-            &mut padding_count,
-        )?;
+        };
+
+        Self::build_bytestream_inner(&self.data, data_sheet, &mut buffer, &mut state, &config)?;
 
         if matches!(self.header.crc_location, CrcLocation::Keyword(_)) {
             // Padding out to the 4 byte boundary for appended/prepended CRC32
-            while offset % 4 != 0 {
-                buffer.push(self.header.padding);
-                offset += 1;
-                padding_count += 1;
+            while !state.offset.is_multiple_of(4) {
+                buffer.push(config.padding);
+                state.offset += 1;
+                state.padding_count += 1;
             }
         }
 
-        Ok((buffer, padding_count))
+        Ok((buffer, state.padding_count))
     }
 
     fn build_bytestream_inner(
         table: &Entry,
         data_sheet: &DataSheet,
         buffer: &mut Vec<u8>,
-        offset: &mut usize,
-        endianness: &Endianness,
-        padding: &u8,
-        strict: bool,
-        padding_count: &mut u32,
+        state: &mut BuildState,
+        config: &BuildConfig,
     ) -> Result<(), LayoutError> {
         match table {
             Entry::Leaf(leaf) => {
                 let alignment = leaf.get_alignment();
-                while *offset % alignment != 0 {
-                    buffer.push(*padding);
-                    *offset += 1;
-                    *padding_count += 1;
+                while !state.offset.is_multiple_of(alignment) {
+                    buffer.push(config.padding);
+                    state.offset += 1;
+                    state.padding_count += 1;
                 }
 
-                let bytes = leaf.emit_bytes(data_sheet, endianness, padding, strict)?;
-                *offset += bytes.len();
+                let bytes = leaf.emit_bytes(data_sheet, config)?;
+                state.offset += bytes.len();
                 buffer.extend(bytes);
             }
             Entry::Branch(branch) => {
                 for (field_name, v) in branch.iter() {
-                    Self::build_bytestream_inner(
-                        v,
-                        data_sheet,
-                        buffer,
-                        offset,
-                        endianness,
-                        padding,
-                        strict,
-                        padding_count,
-                    )
-                    .map_err(|e| LayoutError::InField {
-                        field: field_name.clone(),
-                        source: Box::new(e),
-                    })?;
+                    Self::build_bytestream_inner(v, data_sheet, buffer, state, config).map_err(
+                        |e| LayoutError::InField {
+                            field: field_name.clone(),
+                            source: Box::new(e),
+                        },
+                    )?;
                 }
             }
         }

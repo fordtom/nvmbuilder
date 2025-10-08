@@ -1,3 +1,4 @@
+use super::block::BuildConfig;
 use super::errors::LayoutError;
 use super::settings::Endianness;
 use super::value::ValueSource;
@@ -67,18 +68,28 @@ impl LeafEntry {
     pub fn emit_bytes(
         &self,
         data_sheet: &DataSheet,
-        endianness: &Endianness,
-        padding: &u8,
-        strict: bool,
+        config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
         match self.size {
-            None => self.emit_bytes_single(data_sheet, endianness, strict),
+            None => self.emit_bytes_single(data_sheet, config.endianness, config.strict),
             Some(SizeSource::OneD(size)) => {
-                let bytes = self.emit_bytes_1d(data_sheet, endianness, size, padding, strict)?;
+                let bytes = self.emit_bytes_1d(
+                    data_sheet,
+                    config.endianness,
+                    size,
+                    &config.padding,
+                    config.strict,
+                )?;
                 Ok(bytes)
             }
             Some(SizeSource::TwoD(size)) => {
-                let bytes = self.emit_bytes_2d(data_sheet, endianness, size, padding, strict)?;
+                let bytes = self.emit_bytes_2d(
+                    data_sheet,
+                    config.endianness,
+                    size,
+                    &config.padding,
+                    config.strict,
+                )?;
                 Ok(bytes)
             }
         }
