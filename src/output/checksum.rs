@@ -1,28 +1,53 @@
 use crate::layout::settings::CrcData;
-use crc::{Algorithm, Crc};
-use std::sync::OnceLock;
 
-static CRC_ALGORITHM: OnceLock<Algorithm<u32>> = OnceLock::new();
-
-pub fn init_crc_algorithm(crc_settings: &CrcData) {
-    let algo = Algorithm::<u32> {
-        width: 32,
-        poly: crc_settings.polynomial,
-        init: crc_settings.start,
-        refin: crc_settings.ref_in,
-        refout: crc_settings.ref_out,
-        xorout: crc_settings.xor_out,
-        check: 0,
-        residue: 0,
+/// Hand-rolled CRC32 calculation matching the crc crate's NoTable implementation.
+/// This removes the need for static state and allows each block to use its own CRC settings.
+pub fn calculate_crc(data: &[u8], crc_settings: &CrcData) -> u32 {
+    // Initialize CRC based on ref_in
+    let mut crc = if crc_settings.ref_in {
+        crc_settings.start.reverse_bits()
+    } else {
+        crc_settings.start
     };
 
-    CRC_ALGORITHM.set(algo).ok(); // Don't panic if already initialized (useful for tests)
-}
+    // Prepare polynomial
+    let poly = if crc_settings.ref_in {
+        crc_settings.polynomial.reverse_bits()
+    } else {
+        crc_settings.polynomial
+    };
 
-pub fn calculate_crc(data: &[u8]) -> u32 {
-    let algorithm = CRC_ALGORITHM.get().expect("CRC algorithm not initialized");
-    let crc = Crc::<u32>::new(algorithm);
-    let mut crc_digest = crc.digest();
-    crc_digest.update(data);
-    crc_digest.finalize()
+    // Process each byte
+    for &byte in data {
+        let idx = if crc_settings.ref_in {
+            (crc ^ (byte as u32)) & 0xFF
+        } else {
+            ((crc >> 24) ^ (byte as u32)) & 0xFF
+        };
+
+        // Perform 8 rounds of bitwise CRC calculation
+        let mut step = idx;
+        if crc_settings.ref_in {
+            for _ in 0..8 {
+                step = (step >> 1) ^ ((step & 1) * poly);
+            }
+        } else {
+            for _ in 0..8 {
+                step = (step << 1) ^ (((step >> 31) & 1) * poly);
+            }
+        }
+
+        crc = if crc_settings.ref_in {
+            step ^ (crc >> 8)
+        } else {
+            step ^ (crc << 8)
+        };
+    }
+
+    // Finalize
+    if crc_settings.ref_in ^ crc_settings.ref_out {
+        crc = crc.reverse_bits();
+    }
+
+    crc ^ crc_settings.xor_out
 }

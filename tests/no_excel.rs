@@ -9,7 +9,6 @@ fn test_build_without_excel() {
     common::ensure_out_dir();
 
     let layout_path = "examples/block_no_excel.toml";
-    common::init_crc_from_layout(layout_path);
 
     let input = nvmbuilder::layout::args::BlockNames {
         name: "simple_block".to_string(),
@@ -58,7 +57,6 @@ fn test_error_when_name_without_excel() {
 
     // Use a layout that references names from Excel
     let layout_path = "examples/block.toml";
-    common::init_crc_from_layout(layout_path);
 
     let input = nvmbuilder::layout::args::BlockNames {
         name: "block".to_string(),

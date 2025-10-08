@@ -4,7 +4,6 @@ use std::fs;
 use std::path::Path;
 
 use nvmbuilder::args::Args;
-use nvmbuilder::layout;
 use nvmbuilder::layout::args::{BlockNames, LayoutArgs};
 use nvmbuilder::output::args::{OutputArgs, OutputFormat};
 use nvmbuilder::variant::{self, DataSheet};
@@ -18,11 +17,6 @@ pub fn write_layout_file(file_stem: &str, contents: &str) -> String {
     let path = format!("out/{}.toml", file_stem);
     std::fs::write(&path, contents).expect("write layout file");
     path
-}
-
-pub fn init_crc_from_layout(layout_path: &str) {
-    let cfg = layout::load_layout(layout_path).expect("failed to parse layout");
-    nvmbuilder::output::checksum::init_crc_algorithm(&cfg.settings.crc);
 }
 
 pub fn build_args(layout_path: &str, block_name: &str, format: OutputFormat) -> Args {
