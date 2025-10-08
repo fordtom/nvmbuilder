@@ -2,6 +2,7 @@ pub mod args;
 pub mod block;
 mod conversions;
 mod entry;
+pub mod errors;
 pub mod header;
 pub mod settings;
 pub mod value;

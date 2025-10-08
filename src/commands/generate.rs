@@ -19,7 +19,8 @@ pub fn build_block_single(
         .get(&input.name)
         .ok_or(NvmError::BlockNotFound(input.name.clone()))?;
 
-    let (bytestream, padding_bytes) = block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
+    let (bytestream, padding_bytes) =
+        block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
     let data_range = crate::output::bytestream_to_datarange(
         bytestream,

@@ -89,7 +89,14 @@ impl Block {
             Entry::Branch(branch) => {
                 for (_, v) in branch.iter() {
                     Self::build_bytestream_inner(
-                        v, data_sheet, buffer, offset, endianness, padding, strict, padding_count,
+                        v,
+                        data_sheet,
+                        buffer,
+                        offset,
+                        endianness,
+                        padding,
+                        strict,
+                        padding_count,
                     )?;
                 }
             }

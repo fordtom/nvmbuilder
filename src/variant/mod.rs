@@ -1,4 +1,5 @@
 pub mod args;
+pub mod errors;
 mod helpers;
 
 use calamine::{Data, Range, Reader, Xlsx, open_workbook};

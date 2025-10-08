@@ -1,5 +1,6 @@
 pub mod args;
 pub mod checksum;
+pub mod errors;
 
 use crate::error::*;
 use crate::layout::header::{CrcLocation, Header};
