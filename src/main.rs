@@ -13,8 +13,14 @@ fn main() -> Result<(), NvmError> {
 
     let data_sheet = DataSheet::new(&args.variant)?;
 
+    // Check if blocks are provided
+    let first_block = args
+        .layout
+        .blocks
+        .first()
+        .ok_or_else(|| layout::errors::LayoutError::NoBlocksProvided)?;
+
     // This is a temporary fix for the one-time initialisation of the crc
-    let first_block = args.layout.blocks.first().unwrap();
     let first_layout = layout::load_layout(&first_block.file)?;
     output::checksum::init_crc_algorithm(&first_layout.settings.crc);
 
