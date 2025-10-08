@@ -87,7 +87,7 @@ impl Block {
                 buffer.extend(bytes);
             }
             Entry::Branch(branch) => {
-                for (_, v) in branch.iter() {
+                for (field_name, v) in branch.iter() {
                     Self::build_bytestream_inner(
                         v,
                         data_sheet,
@@ -97,7 +97,11 @@ impl Block {
                         padding,
                         strict,
                         padding_count,
-                    )?;
+                    )
+                    .map_err(|e| LayoutError::InField {
+                        field: field_name.clone(),
+                        source: Box::new(e),
+                    })?;
                 }
             }
         }

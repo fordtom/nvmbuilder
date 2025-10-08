@@ -14,6 +14,13 @@ pub enum LayoutError {
     #[error("Invalid block argument: {0}.")]
     InvalidBlockArgument(String),
 
+    #[error("In field '{field}': {source}")]
+    InField {
+        field: String,
+        #[source]
+        source: Box<LayoutError>,
+    },
+
     #[error(transparent)]
     Variant(#[from] crate::variant::errors::VariantError),
 }

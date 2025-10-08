@@ -13,4 +13,11 @@ pub enum VariantError {
 
     #[error("Misc error: {0}.")]
     MiscError(String),
+
+    #[error("While retrieving '{name}': {source}")]
+    WhileRetrieving {
+        name: String,
+        #[source]
+        source: Box<VariantError>,
+    },
 }
