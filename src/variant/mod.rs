@@ -2,7 +2,7 @@ pub mod args;
 pub mod errors;
 mod helpers;
 
-use calamine::{open_workbook, Data, Range, Reader, Xlsx};
+use calamine::{Data, Range, Reader, Xlsx, open_workbook};
 use std::collections::HashMap;
 
 use crate::layout::value::{DataValue, ValueSource};
@@ -122,8 +122,8 @@ impl DataSheet {
                 ));
             };
 
-            // Check if the value starts with '@' to indicate a sheet reference
-            if let Some(sheet_name) = cell_string.strip_prefix('@') {
+            // Check if the value starts with '#' to indicate a sheet reference
+            if let Some(sheet_name) = cell_string.strip_prefix('#') {
                 let sheet = self.sheets.get(sheet_name).ok_or_else(|| {
                     VariantError::RetrievalError(format!("Sheet not found: {}", sheet_name))
                 })?;
@@ -151,7 +151,7 @@ impl DataSheet {
                 return Ok(ValueSource::Array(out));
             }
 
-            // No '@' prefix, treat as a literal string
+            // No '#' prefix, treat as a literal string
             Ok(ValueSource::Single(DataValue::Str(cell_string.to_owned())))
         })();
 
@@ -169,9 +169,9 @@ impl DataSheet {
                 ));
             };
 
-            let sheet_name = cell_string.strip_prefix('@').ok_or_else(|| {
+            let sheet_name = cell_string.strip_prefix('#').ok_or_else(|| {
                 VariantError::RetrievalError(format!(
-                    "2D array reference must start with '@' prefix, got: {}",
+                    "2D array reference must start with '#' prefix, got: {}",
                     cell_string
                 ))
             })?;
