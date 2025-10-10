@@ -122,8 +122,12 @@ impl DataSheet {
                 ));
             };
 
-            // If we find a sheet, we assume it's a 1D array
-            if let Some(sheet) = self.sheets.get(cell_string) {
+            // Check if the value starts with '#' to indicate a sheet reference
+            if let Some(sheet_name) = cell_string.strip_prefix('#') {
+                let sheet = self.sheets.get(sheet_name).ok_or_else(|| {
+                    VariantError::RetrievalError(format!("Sheet not found: {}", sheet_name))
+                })?;
+
                 let mut out = Vec::new();
 
                 for row in sheet.rows().skip(1) {
@@ -147,7 +151,7 @@ impl DataSheet {
                 return Ok(ValueSource::Array(out));
             }
 
-            // We don't find a sheet, so we assume it's a string
+            // No '#' prefix, treat as a literal string
             Ok(ValueSource::Single(DataValue::Str(cell_string.to_owned())))
         })();
 
@@ -165,8 +169,15 @@ impl DataSheet {
                 ));
             };
 
-            let sheet = self.sheets.get(cell_string).ok_or_else(|| {
-                VariantError::RetrievalError("Sheet not found: ".to_string() + cell_string)
+            let sheet_name = cell_string.strip_prefix('#').ok_or_else(|| {
+                VariantError::RetrievalError(format!(
+                    "2D array reference must start with '#' prefix, got: {}",
+                    cell_string
+                ))
+            })?;
+
+            let sheet = self.sheets.get(sheet_name).ok_or_else(|| {
+                VariantError::RetrievalError(format!("Sheet not found: {}", sheet_name))
             })?;
 
             let convert = |cell: &Data| -> Result<DataValue, VariantError> {
