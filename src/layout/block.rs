@@ -51,7 +51,7 @@ impl Block {
         strict: bool,
     ) -> Result<(Vec<u8>, u32), LayoutError> {
         let mut state = BuildState {
-            buffer: Vec::with_capacity(self.header.length as usize),
+            buffer: Vec::with_capacity((self.header.length as usize).min(64 * 1024)),
             offset: 0,
             padding_count: 0,
         };
