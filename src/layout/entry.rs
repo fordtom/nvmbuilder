@@ -107,7 +107,13 @@ impl LeafEntry {
         size: usize,
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
-        let mut out = Vec::with_capacity(size * self.scalar_type.size_bytes());
+        let elem = self.scalar_type.size_bytes();
+        let total_bytes = size
+            .checked_mul(elem)
+            .ok_or(LayoutError::DataValueExportFailed(
+                "Array size overflow".into(),
+            ))?;
+        let mut out = Vec::with_capacity(total_bytes);
 
         match &self.source {
             EntrySource::Name(name) => {
@@ -152,12 +158,12 @@ impl LeafEntry {
             }
         }
 
-        if out.len() > (size * self.scalar_type.size_bytes()) {
+        if out.len() > total_bytes {
             return Err(LayoutError::DataValueExportFailed(
                 "Array/string is larger than defined size.".to_string(),
             ));
         }
-        while out.len() < (size * self.scalar_type.size_bytes()) {
+        while out.len() < total_bytes {
             out.push(config.padding);
         }
         Ok(out)
@@ -182,7 +188,18 @@ impl LeafEntry {
                 let rows = size[0];
                 let cols = size[1];
 
-                let total_bytes = rows * cols * self.scalar_type.size_bytes();
+                let elem = self.scalar_type.size_bytes();
+                let total_elems =
+                    rows.checked_mul(cols)
+                        .ok_or(LayoutError::DataValueExportFailed(
+                            "2D size overflow".into(),
+                        ))?;
+                let total_bytes =
+                    total_elems
+                        .checked_mul(elem)
+                        .ok_or(LayoutError::DataValueExportFailed(
+                            "2D byte count overflow".into(),
+                        ))?;
 
                 if data.iter().any(|row| row.len() != cols) {
                     return Err(LayoutError::DataValueExportFailed(

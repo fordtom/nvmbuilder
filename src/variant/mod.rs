@@ -50,11 +50,19 @@ impl DataSheet {
             .ok_or(VariantError::ColumnNotFound("Default".to_string()))?;
 
         let mut names: Vec<String> = Vec::with_capacity(data_rows);
-        names.extend(rows.iter().skip(1).map(|row| row[name_index].to_string()));
+        names.extend(rows.iter().skip(1).map(|row| {
+            row.get(name_index)
+                .map(|c| c.to_string().trim().to_string())
+                .unwrap_or_default()
+        }));
         helpers::warn_duplicate_names(&names);
 
         let mut default_values: Vec<Data> = Vec::with_capacity(data_rows);
-        default_values.extend(rows.iter().skip(1).map(|row| row[default_index].clone()));
+        default_values.extend(
+            rows.iter()
+                .skip(1)
+                .map(|row| row.get(default_index).cloned().unwrap_or(Data::Empty)),
+        );
 
         let mut debug_values: Option<Vec<Data>> = None;
         if args.debug {
@@ -64,7 +72,11 @@ impl DataSheet {
                 .ok_or(VariantError::ColumnNotFound("Debug".to_string()))?;
 
             let mut debug_vec: Vec<Data> = Vec::with_capacity(data_rows);
-            debug_vec.extend(rows.iter().skip(1).map(|row| row[debug_index].clone()));
+            debug_vec.extend(
+                rows.iter()
+                    .skip(1)
+                    .map(|row| row.get(debug_index).cloned().unwrap_or(Data::Empty)),
+            );
 
             debug_values = Some(debug_vec);
         }
@@ -73,11 +85,15 @@ impl DataSheet {
         if let Some(name) = &args.variant {
             let variant_index = headers
                 .iter()
-                .position(|cell| cell.to_string() == *name)
+                .position(|cell| Self::cell_eq_ascii(cell, name))
                 .ok_or(VariantError::ColumnNotFound(name.to_string()))?;
 
             let mut variant_vec: Vec<Data> = Vec::with_capacity(data_rows);
-            variant_vec.extend(rows.iter().skip(1).map(|row| row[variant_index].clone()));
+            variant_vec.extend(
+                rows.iter()
+                    .skip(1)
+                    .map(|row| row.get(variant_index).cloned().unwrap_or(Data::Empty)),
+            );
 
             variant_values = Some(variant_vec);
         };
@@ -125,7 +141,12 @@ impl DataSheet {
             // Check if the value starts with '#' to indicate a sheet reference
             if let Some(sheet_name) = cell_string.strip_prefix('#') {
                 let sheet = self.sheets.get(sheet_name).ok_or_else(|| {
-                    VariantError::RetrievalError(format!("Sheet not found: {}", sheet_name))
+                    let available: Vec<_> = self.sheets.keys().map(|s| s.as_str()).collect();
+                    VariantError::RetrievalError(format!(
+                        "Sheet not found: '{}'. Available sheets: {}",
+                        sheet_name,
+                        available.join(", ")
+                    ))
                 })?;
 
                 let mut out = Vec::new();
@@ -177,7 +198,12 @@ impl DataSheet {
             })?;
 
             let sheet = self.sheets.get(sheet_name).ok_or_else(|| {
-                VariantError::RetrievalError(format!("Sheet not found: {}", sheet_name))
+                let available: Vec<_> = self.sheets.keys().map(|s| s.as_str()).collect();
+                VariantError::RetrievalError(format!(
+                    "Sheet not found: '{}'. Available sheets: {}",
+                    sheet_name,
+                    available.join(", ")
+                ))
             })?;
 
             let convert = |cell: &Data| -> Result<DataValue, VariantError> {

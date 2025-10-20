@@ -76,13 +76,16 @@ pub fn bytestream_to_datarange(
 
     // Apply optional byte swap across the entire stream before CRC
     if byte_swap {
+        if bytestream.len() % 2 != 0 {
+            bytestream.push(header.padding);
+        }
         byte_swap_inplace(bytestream.as_mut_slice());
     }
 
     // Determine CRC location relative to current payload end
     let crc_location = validate_crc_location(bytestream.len(), header)?;
 
-    let used_size = (bytestream.len() + 4) as u32 - padding_bytes;
+    let used_size = ((bytestream.len() as u32).saturating_add(4)).saturating_sub(padding_bytes);
     let allocated_size = header.length;
 
     // Padding for CRC alignment
@@ -127,6 +130,12 @@ pub fn emit_hex(
     record_width: usize,
     format: OutputFormat,
 ) -> Result<String, OutputError> {
+    if !(1..=128).contains(&record_width) {
+        return Err(OutputError::HexOutputError(
+            "Record width must be between 1 and 128".to_string(),
+        ));
+    }
+
     // Use bin_file to format output.
     let mut bf = BinFile::new();
     let mut max_end: usize = 0;

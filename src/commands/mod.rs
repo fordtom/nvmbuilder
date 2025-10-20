@@ -48,59 +48,68 @@ pub fn build_single_file(
     let mut stats = BuildStats::new();
 
     for input in &args.layout.blocks {
-        let result = (|| {
-            let layout = layout::load_layout(&input.file)?;
+        let result =
+            (|| {
+                let layout = layout::load_layout(&input.file)?;
 
-            let block = layout
-                .blocks
-                .get(&input.name)
-                .ok_or(LayoutError::BlockNotFound(input.name.clone()))?;
+                let block = layout
+                    .blocks
+                    .get(&input.name)
+                    .ok_or(LayoutError::BlockNotFound(input.name.clone()))?;
 
-            let (bytestream, padding_bytes) =
-                block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
+                let (bytestream, padding_bytes) =
+                    block.build_bytestream(data_sheet, &layout.settings, args.layout.strict)?;
 
-            let dr = output::bytestream_to_datarange(
-                bytestream,
-                &block.header,
-                &layout.settings,
-                layout.settings.byte_swap,
-                layout.settings.pad_to_end,
-                padding_bytes,
-            )?;
+                let dr = output::bytestream_to_datarange(
+                    bytestream,
+                    &block.header,
+                    &layout.settings,
+                    layout.settings.byte_swap,
+                    layout.settings.pad_to_end,
+                    padding_bytes,
+                )?;
 
-            let crc_value = match layout.settings.endianness {
-                layout::settings::Endianness::Big => u32::from_be_bytes([
+                let mut crc_bytes = [
                     dr.crc_bytestream[0],
                     dr.crc_bytestream[1],
                     dr.crc_bytestream[2],
                     dr.crc_bytestream[3],
-                ]),
-                layout::settings::Endianness::Little => u32::from_le_bytes([
-                    dr.crc_bytestream[0],
-                    dr.crc_bytestream[1],
-                    dr.crc_bytestream[2],
-                    dr.crc_bytestream[3],
-                ]),
-            };
+                ];
+                if layout.settings.byte_swap {
+                    crc_bytes.swap(0, 1);
+                    crc_bytes.swap(2, 3);
+                }
+                let crc_value = match layout.settings.endianness {
+                    layout::settings::Endianness::Big => u32::from_be_bytes(crc_bytes),
+                    layout::settings::Endianness::Little => u32::from_le_bytes(crc_bytes),
+                };
 
-            let stat = BlockStat {
-                name: input.name.clone(),
-                start_address: dr.start_address,
-                allocated_size: dr.allocated_size,
-                used_size: dr.used_size,
-                crc_value,
-            };
+                let stat = BlockStat {
+                    name: input.name.clone(),
+                    start_address: dr.start_address,
+                    allocated_size: dr.allocated_size,
+                    used_size: dr.used_size,
+                    crc_value,
+                };
 
-            let start = block.header.start_address + layout.settings.virtual_offset;
-            let end = start + block.header.length;
+                let start = block
+                    .header
+                    .start_address
+                    .checked_add(layout.settings.virtual_offset)
+                    .ok_or(LayoutError::InvalidBlockArgument(
+                        "start_address + virtual_offset overflow".into(),
+                    ))?;
+                let end = start.checked_add(block.header.length).ok_or(
+                    LayoutError::InvalidBlockArgument("start + length overflow".into()),
+                )?;
 
-            Ok((dr, stat, start, end))
-        })()
-        .map_err(|e| NvmError::InBlock {
-            block_name: input.name.clone(),
-            layout_file: input.file.clone(),
-            source: Box::new(e),
-        })?;
+                Ok((dr, stat, start, end))
+            })()
+            .map_err(|e| NvmError::InBlock {
+                block_name: input.name.clone(),
+                layout_file: input.file.clone(),
+                source: Box::new(e),
+            })?;
 
         let (dr, stat, start, end) = result;
         stats.add_block(stat);
