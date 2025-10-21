@@ -39,8 +39,11 @@ wifi.key = { name = "WiFiKey", type = "u8", size = 64 }
 net.ip = { value = [192, 168, 1, 100], type = "u8", size = 4 }
 
 # Arrays from Excel
+# Use 'size' (lowercase) to allow padding if Excel data is shorter than specified
 calibration.coefficients = { name = "Coefficients1D", type = "f32", size = 8 }
 calibration.matrix = { name = "CalibrationMatrix", type = "i16", size = [3, 3] }
+# Use 'SIZE' (uppercase) to enforce exact length - error if Excel data is shorter
+# calibration.strict_coefficients = { name = "SomeArray", type = "f32", SIZE = 8 }
 
 # Another fixed-size string literal
 message = { value = "Hello, world!", type = "u8", size = 16 }
