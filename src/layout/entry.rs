@@ -10,8 +10,8 @@ use serde::Deserialize;
 pub struct LeafEntry {
     #[serde(rename = "type")]
     pub scalar_type: ScalarType,
-    #[serde(default)]
-    pub size: Option<SizeSource>,
+    #[serde(flatten, default)]
+    size_keys: SizeKeys,
     #[serde(flatten)]
     pub source: EntrySource,
 }
@@ -42,11 +42,33 @@ pub enum ScalarType {
 }
 
 /// Size source enum.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum SizeSource {
     OneD(usize),
     TwoD([usize; 2]),
+}
+
+/// Helper struct to capture both 'size' and 'SIZE' keys.
+#[derive(Debug, Default, Deserialize)]
+struct SizeKeys {
+    #[serde(rename = "size")]
+    size: Option<SizeSource>,
+    #[serde(rename = "SIZE")]
+    strict_size: Option<SizeSource>,
+}
+
+impl SizeKeys {
+    fn resolve(&self) -> Result<(Option<SizeSource>, bool), LayoutError> {
+        match (&self.size, &self.strict_size) {
+            (Some(_), Some(_)) => Err(LayoutError::DataValueExportFailed(
+                "Use either 'size' or 'SIZE', not both.".into(),
+            )),
+            (Some(s), None) => Ok((Some(s.clone()), false)),
+            (None, Some(s)) => Ok((Some(s.clone()), true)),
+            (None, None) => Ok((None, false)),
+        }
+    }
 }
 
 /// Mutually exclusive source enum.
@@ -69,10 +91,15 @@ impl LeafEntry {
         data_sheet: Option<&DataSheet>,
         config: &BuildConfig,
     ) -> Result<Vec<u8>, LayoutError> {
-        match self.size {
+        let (size, strict_len) = self.size_keys.resolve()?;
+        match size {
             None => self.emit_bytes_single(data_sheet, config),
-            Some(SizeSource::OneD(size)) => self.emit_bytes_1d(data_sheet, size, config),
-            Some(SizeSource::TwoD(size)) => self.emit_bytes_2d(data_sheet, size, config),
+            Some(SizeSource::OneD(size)) => {
+                self.emit_bytes_1d(data_sheet, size, config, strict_len)
+            }
+            Some(SizeSource::TwoD(size)) => {
+                self.emit_bytes_2d(data_sheet, size, config, strict_len)
+            }
         }
     }
 
@@ -106,6 +133,7 @@ impl LeafEntry {
         data_sheet: Option<&DataSheet>,
         size: usize,
         config: &BuildConfig,
+        strict_len: bool,
     ) -> Result<Vec<u8>, LayoutError> {
         let elem = self.scalar_type.size_bytes();
         let total_bytes = size
@@ -163,6 +191,11 @@ impl LeafEntry {
                 "Array/string is larger than defined size.".to_string(),
             ));
         }
+        if strict_len && out.len() < total_bytes {
+            return Err(LayoutError::DataValueExportFailed(
+                "Array/string is smaller than defined size (strict SIZE).".to_string(),
+            ));
+        }
         while out.len() < total_bytes {
             out.push(config.padding);
         }
@@ -174,6 +207,7 @@ impl LeafEntry {
         data_sheet: Option<&DataSheet>,
         size: [usize; 2],
         config: &BuildConfig,
+        strict_len: bool,
     ) -> Result<Vec<u8>, LayoutError> {
         match &self.source {
             EntrySource::Name(name) => {
@@ -210,6 +244,12 @@ impl LeafEntry {
                 if data.len() > rows {
                     return Err(LayoutError::DataValueExportFailed(
                         "2D array row count greater than defined size.".to_string(),
+                    ));
+                }
+
+                if strict_len && data.len() < rows {
+                    return Err(LayoutError::DataValueExportFailed(
+                        "2D array row count smaller than defined size (strict SIZE).".to_string(),
                     ));
                 }
 
