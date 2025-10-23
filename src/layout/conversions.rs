@@ -89,16 +89,14 @@ macro_rules! impl_try_from_strict_float_targets {
             fn try_from_strict(value: &DataValue) -> Result<Self, LayoutError> {
                 match value {
                     DataValue::F64(v) => {
-                        let out = *v as $t;
-                        if !v.is_finite() || !out.is_finite() {
+                        if !v.is_finite() {
                             return Err(err!("non-finite float not allowed in strict mode"));
                         }
-                        if (out as f64) == *v {
+                        let out = *v as $t;
+                        if out.is_finite() {
                             Ok(out)
                         } else {
-                            Err(err!(
-                                "lossy float narrowing conversion not allowed in strict mode"
-                            ))
+                            Err(err!(format!("float value {} out of range for {}", v, stringify!($t))))
                         }
                     }
                     DataValue::U64(v) => {
